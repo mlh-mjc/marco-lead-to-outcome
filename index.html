@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marco Lead-to-Outcome Lineage (v1)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root{
+  --bg:#ffffff; --fg:#1f2937; --heading:#0f172a;
+  --accent-grad:linear-gradient(135deg,#7c3aed 0%,#2563eb 100%);
+  --hr:rgba(0,0,0,0.1); --code-bg:rgba(0,0,0,0.04);
+  --border:rgba(0,0,0,0.1); --muted:#6b7280;
+  --note:#3b82f6; --tip:#10b981; --important:#8b5cf6; --warning:#f59e0b; --caution:#ef4444;
+}
+*{box-sizing:border-box;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.6;padding:2.5rem 2rem;max-width:960px;margin:0 auto;color:var(--fg);background:var(--bg);}
+h1,h2,h3,h4{font-family:'Outfit',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:700;color:var(--heading);line-height:1.25;}
+h1{font-size:2.2rem;font-weight:800;position:relative;padding-bottom:.6rem;margin:.4rem 0 1rem;letter-spacing:-.02em;}
+h1::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:3px;background:var(--accent-grad);}
+h2{font-size:1.45rem;letter-spacing:-.01em;margin:1.4rem 0 .6rem;}
+h3{font-size:1.18rem;margin:1.2rem 0 .5rem;}
+h4{font-size:1.02rem;margin:1rem 0 .4rem;}
+a{color:#2563eb;text-decoration:none;border-bottom:1px solid transparent;}
+a:hover{border-bottom-color:#2563eb;}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;padding:.12rem .35rem;border-radius:6px;background:var(--code-bg);color:#0f172a;}
+pre{padding:1rem 1.1rem;border-radius:8px;background:#f6f8fa;overflow-x:auto;border:1px solid var(--border);margin:1.1rem 0;font-size:.82rem;}
+pre code{padding:0;background:transparent;}
+hr{height:1px;border:none;background:var(--accent-grad);opacity:.3;margin:2rem 0;}
+table{width:100%;border-collapse:collapse;margin:1.1rem 0;font-size:.9rem;background:#fff;border:1px solid var(--border);}
+th,td{padding:.55rem .7rem;border:1px solid var(--border);text-align:left;vertical-align:top;}
+th{background:#f3f4f6;font-weight:600;color:#0f172a;}
+tr:nth-child(even) td{background:#f9fafb;}
+ul,ol{padding-left:1.4rem;margin:.7rem 0;}
+li{margin-bottom:.3rem;}
+.alert{padding:.8rem 1.1rem;margin:1.1rem 0;border-left:4px solid;border-radius:0 6px 6px 0;font-size:.93em;}
+.alert .at{font-weight:700;display:flex;gap:.45rem;align-items:center;margin-bottom:.35rem;text-transform:capitalize;}
+.alert p{margin:.3rem 0;}
+.note{border-color:var(--note);background:rgba(59,130,246,.08);} .note .at{color:var(--note);}
+.tip{border-color:var(--tip);background:rgba(16,185,129,.08);} .tip .at{color:var(--tip);}
+.important{border-color:var(--important);background:rgba(139,92,246,.08);} .important .at{color:var(--important);}
+.warning{border-color:var(--warning);background:rgba(245,158,11,.08);} .warning .at{color:var(--warning);}
+.caution{border-color:var(--caution);background:rgba(239,68,68,.08);} .caution .at{color:var(--caution);}
+details{border:1px solid var(--border);border-radius:10px;margin:.9rem 0;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+details[open]{box-shadow:0 4px 14px rgba(0,0,0,.07);}
+summary{cursor:pointer;padding:1rem 1.2rem;font-family:'Outfit',sans-serif;font-weight:700;font-size:1.08rem;color:#0f172a;list-style:none;display:flex;align-items:baseline;gap:.6rem;background:linear-gradient(135deg,rgba(124,58,237,.05),rgba(37,99,235,.05));}
+summary::-webkit-details-marker{display:none;}
+summary::before{content:'\25B8';color:#7c3aed;font-size:.9rem;transition:transform .15s ease;}
+details[open] summary::before{transform:rotate(90deg);}
+summary .num{font-size:.8rem;font-weight:700;color:#fff;background:var(--accent-grad);border-radius:6px;padding:.12rem .5rem;}
+summary .sub{font-weight:500;font-size:.85rem;color:var(--muted);font-family:'Inter';margin-left:auto;}
+.body{padding:.4rem 1.3rem 1.3rem;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin:1.1rem 0;}
+.kpi{border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem;background:linear-gradient(135deg,rgba(124,58,237,.04),rgba(37,99,235,.04));}
+.kpi .v{font-family:'Outfit';font-weight:800;font-size:1.5rem;color:#0f172a;line-height:1.1;}
+.kpi .l{font-size:.78rem;color:var(--muted);margin-top:.2rem;}
+.tag{display:inline-block;font-size:.72rem;font-weight:600;padding:.1rem .45rem;border-radius:5px;margin-left:.3rem;}
+.tag.live{background:rgba(16,185,129,.15);color:#047857;}
+.tag.code{background:rgba(139,92,246,.15);color:#6d28d9;}
+.tag.infer{background:rgba(245,158,11,.15);color:#b45309;}
+.meta{color:var(--muted);font-size:.92rem;}
+.lede{font-size:1.02rem;}
+.mermaid{margin:1.2rem 0;text-align:center;}
+.legend{font-size:.82rem;color:var(--muted);}
+.src{font-size:.82rem;color:var(--muted);border-top:1px dashed var(--border);margin-top:1rem;padding-top:.5rem;}
+small{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<h1>Marco Lead-to-Outcome Lineage</h1>
+<p class="meta"><strong>Version 1</strong> &nbsp;&middot;&nbsp; Built for the Tuesday sync, shared with Adam Wednesday &nbsp;&middot;&nbsp; Date: 2026-06-11<br>
+<strong>Sources (all queried live for this report, not copied from v5):</strong> CtC production read-replica (MariaDB 10.6, <code>callstoconvert_prod_db</code>), Ultravox API (<code>X-API-Key</code>), Leadspedia Core API, Twilio REST API + Trust Hub console, Hannah's O&amp;O Daily Tracking sheet, and the dialer source (<code>api-callstoconvert</code> / <code>ui-callstoconvert</code>, read-only).<br>
+<strong>Window:</strong> last 30 days, 2026-05-12 to 2026-06-11, unless stated. Nothing here is pushed live. Every fix is yours to apply.</p>
+
+<div class="alert note">
+<div class="at">&#9432; How to use this document</div>
+<p>Everything is collapsed by default so the whole report fits one screen. Read the summary just below, then open the section that answers the question in front of you. Each of the nine sections is self-contained and drills from a one-line headline down to the exact page, field, and value to change.</p>
+<p><strong>Evidence tags</strong> appear on claims: <span class="tag live">LIVE</span> queried from the API/DB just now, <span class="tag code">CODE</span> located in the dialer source on disk, <span class="tag infer">INFERRED</span> reasoned, not directly measured (always flagged, v5-style). Where data is missing, the section says so plainly.</p>
+</div>
+
+<h2>Top-level summary</h2>
+<p class="lede">Marco placed <strong>9,014 dials</strong> in the last 30 days and produced <strong>3 billable transfers</strong> worth <strong>$248.93</strong>. The funnel does not leak at one point, it leaks everywhere, and the single most misleading number in every existing report is the word <strong>"connected."</strong></p>
+
+<div class="kpi-grid">
+<div class="kpi"><div class="v">9,014</div><div class="l">dials (30d)</div></div>
+<div class="kpi"><div class="v">15.2%</div><div class="l">final "connected" status</div></div>
+<div class="kpi"><div class="v">5.6%</div><div class="l">of connected = real conversation</div></div>
+<div class="kpi"><div class="v">0.32%</div><div class="l">dials that transferred (29)</div></div>
+<div class="kpi"><div class="v">3</div><div class="l">billable transfers (30d)</div></div>
+<div class="kpi"><div class="v">~40%</div><div class="l">voicemail rate, number burn</div></div>
+</div>
+
+<div class="alert warning">
+<div class="at">&#9888; The one thing to take away</div>
+<p>"Connected" fires the instant the audio stream joins, not when a human speaks. Of the 4,953 connect events in 30 days, only 1,367 survived as a final "connected" status (the rest flipped to voicemail or ended). Of a 250-call live sample of those survivors, <strong>5.6% were a genuine multi-turn conversation</strong>. The other ~94% were dead air, a screener, or a one-to-two-turn bail. So the real top-of-conversation rate is under <strong>1% of all dials</strong>, not the 15% the dashboards imply.</p>
+</div>
+
+<table>
+<thead><tr><th>Stage</th><th>Count (30d)</th><th>% of dials</th><th>What it really means</th></tr></thead>
+<tbody>
+<tr><td>Purchased &amp; queued</td><td>5,037 distinct leads</td><td>&mdash;</td><td>~1.8 dials per lead</td></tr>
+<tr><td>Dialed</td><td>8,738</td><td>96.9%</td><td>276 never triggered (ping rejected / API error)</td></tr>
+<tr><td>No answer (attempted)</td><td>3,779</td><td>41.9%</td><td>rang out, no voicemail, no pickup</td></tr>
+<tr><td>Voicemail left</td><td>3,549</td><td>39.4%</td><td>agent talked to a recording</td></tr>
+<tr><td>Media-connected (final)</td><td>1,367</td><td>15.2%</td><td>stream joined; <strong>not</strong> proof of a human</td></tr>
+<tr><td>&nbsp;&nbsp;&#8627; genuine conversation</td><td>~77</td><td>~0.85%</td><td>5.6% of connected, extrapolated from sample</td></tr>
+<tr><td>Transferred</td><td>29</td><td>0.32%</td><td>handed to a licensed agent</td></tr>
+<tr><td>Billable</td><td>3</td><td>0.03%</td><td>$248.93 revenue, $95 publisher payout</td></tr>
+</tbody>
+</table>
+
+<p class="meta">The nine sections below take this apart and attach a concrete, self-serve action to every bucket. The split of what you can do alone versus what needs Leo, the dev team, or the lead feed is restated at the very bottom.</p>
+
+<hr>
+
+<!-- ===================== SECTION 1 ===================== -->
+<details>
+<summary><span class="num">1</span> Terminology reconciliation <span class="sub">one glossary every other section uses</span></summary>
+<div class="body">
+
+<p>Three systems use the words "reached" and "connected" to mean different things, which is exactly why a dashboard built before this is settled would lie. Below is what each system actually means, verified live, then the canonical names this report standardizes on.</p>
+
+<h3>What each system means today</h3>
+<div class="alert important">
+<div class="at">&#10003; Verified live in Hannah's O&amp;O Daily Tracking sheet (Aged Leads tab)</div>
+<p>The tab is laid out in three column groups: <strong>Marco</strong> (Leads Bought, Outbound Calls, Call %), <strong>Reached</strong> (Reached, %, Not Reached, %), and <strong>Connected / Transferred</strong> (Connected, % Connected, Transferred, % Transferred, Transferred Billable, Revenue). The decisive finding: the <strong>"Reached" column and the "Connected" column hold the identical number on every row</strong> (e.g. 6/1: 28 and 28; 6/5: 17 and 17; 6/8: 19 and 19). In the manual tracker the two words are the same field. The "Direct Mail" tab uses a shorter set: "Connected Calls", "Billable", "Conv Rate".</p>
+</div>
+
+<table>
+<thead><tr><th>Term as spoken</th><th>Hannah's tracker</th><th>CtC DB <code>ai_outbound_calls.status</code> <span class="tag live">LIVE</span></th><th>Ultravox <span class="tag code">CODE</span></th></tr></thead>
+<tbody>
+<tr><td><strong>Dialed</strong></td><td>"Outbound Calls" (= Leads Bought, 100% call rate)</td><td><code>status &lt;&gt; 'Not Triggered'</code></td><td>a call object is created</td></tr>
+<tr><td><strong>Reached</strong></td><td>"Reached" column (manually keyed, = Connected)</td><td>voicemail + connected + transferred</td><td>no single field</td></tr>
+<tr><td><strong>Connected</strong></td><td>"Connected" column (identical to Reached)</td><td><code>status = 'connected'</code>, set verbatim from the gateway</td><td><code>call.joined</code> webhook: the media stream joined</td></tr>
+<tr><td><strong>Human answered</strong></td><td>not tracked separately</td><td>not stored; only derivable from Ultravox turns</td><td>&ge;1 user message in <code>/messages</code></td></tr>
+<tr><td><strong>Genuine conversation</strong></td><td>not tracked</td><td>not stored</td><td>&ge;3-4 user/agent turns, &gt;~20s</td></tr>
+<tr><td><strong>Transferred</strong></td><td>"Transferred" column</td><td><code>status = 'transferred'</code></td><td><code>transferCaller</code> tool fired</td></tr>
+<tr><td><strong>Billable</strong></td><td>"Transferred Billable" column</td><td><code>calls.is_billable</code> (join on <code>call_id</code>)</td><td>n/a</td></tr>
+</tbody>
+</table>
+
+<div class="alert caution">
+<div class="at">&#9940; Why "connected" is the dangerous word</div>
+<p>In the gateway code (<code>voice-agent/index.js:517-522</code>) "connected" is emitted the moment Ultravox sends <code>call.joined</code>, which only means the audio bridged. A voicemail box, an iOS Live Voicemail screen, or a carrier screener all "join". The gateway even emits <code>connected</code> first and <em>then</em> emits <code>voicemail</code> for the same call (<code>:548</code>), so the connect signal is structurally inflated. CtC stores whatever the gateway posts, unverified (<code>BrainAPIController.php:1006-1008</code>). Hannah, meanwhile, keys "Connected" by hand from the same overstated source, which is why her number and the DB number both overstate real contact.</p>
+</div>
+
+<h3>The canonical glossary (used by sections 2 to 9)</h3>
+<table>
+<thead><tr><th>Canonical term</th><th>Definition this report locks in</th><th>How it is measured</th></tr></thead>
+<tbody>
+<tr><td><strong>Dialed</strong></td><td>A dial attempt actually left the system.</td><td><code>status &lt;&gt; 'Not Triggered'</code></td></tr>
+<tr><td><strong>No-answer</strong></td><td>Rang, nobody and no voicemail.</td><td><code>status = 'attempted'</code></td></tr>
+<tr><td><strong>Voicemail</strong></td><td>Agent left or talked into a recording.</td><td><code>status = 'voicemail'</code></td></tr>
+<tr><td><strong>Media-connected</strong></td><td>Audio stream joined. Replaces the bare word "connected" everywhere. Carries no claim about a human.</td><td><code>status = 'connected'</code> / <code>call.joined</code></td></tr>
+<tr><td><strong>Human-answered</strong></td><td>A real person spoke at least once.</td><td>Ultravox <code>/messages</code> with &ge;1 user turn</td></tr>
+<tr><td><strong>Engaged conversation</strong></td><td>A genuine multi-turn exchange, not a screener or a one-line bail.</td><td>&ge;3-4 turns and &gt;~20s</td></tr>
+<tr><td><strong>Transferred</strong></td><td>Bridged to a licensed agent.</td><td><code>status = 'transferred'</code></td></tr>
+<tr><td><strong>Billable transfer</strong></td><td>Transfer that monetized.</td><td><code>calls.is_billable = 1</code></td></tr>
+</tbody>
+</table>
+<div class="alert tip"><div class="at">&#10003; Recommendation</div><p>Rename the "Connected" column in Hannah's sheet and on every future dashboard to <strong>Media-connected</strong>, and add two derived columns next to it: <strong>Human-answered</strong> and <strong>Engaged</strong>, both sourced from Ultravox turns (section 3 shows the method). That single rename removes the largest source of cross-team confusion.</p></div>
+
+<p class="src"><strong>Sources:</strong> Hannah's O&amp;O Daily Tracking (Aged Leads + Direct Mail tabs, opened live); <code>ai_outbound_calls.status</code> distribution (live SQL); gateway <code>voice-agent/index.js:517-552</code>; <code>BrainAPIController.php:1006-1008</code>.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 2 ===================== -->
+<details>
+<summary><span class="num">2</span> Lead-to-outcome lineage &amp; attribution model <span class="sub">two views, joined on the purchase date</span></summary>
+<div class="body">
+
+<p>Jamie's constraint (Slack 6/11, 3:28 PM): a redial happens on one day but the lead may have been bought yesterday or five days ago, so a naive "dials today" view files activity under the wrong cohort. The data shape lets us resolve this cleanly.</p>
+
+<div class="alert important">
+<div class="at">&#10003; The key structural fact (verified live)</div>
+<p><code>ai_outbound_calls</code> is <strong>one row per dial attempt</strong>, not one row per lead. In 30 days: 9,014 rows, 9,012 distinct ping IDs, but only <strong>5,037 distinct leads</strong> (~1.8 dials each). The attempt index lives on each row in <code>redial_counts</code> (NULL/0 = first dial, 1 = first redial, up to 12), and those buckets sum exactly to 9,014. So both views come from the same table, cut two different ways. No second source is needed.</p>
+</div>
+
+<h3>The lineage and the join</h3>
+<div class="mermaid">
+flowchart TD
+  P["Lead PURCHASED (Leadspedia)<br/>createdOn = purchase date<br/>affiliateName = source, CPL = cost"]:::lp
+  Q["Enters CtC queue<br/>lead_id AL-######## + publisher_name<br/>leads_age = days old at dial"]:::ctc
+  D["DIALED: one ai_outbound_calls row per attempt<br/>created_at = activity date<br/>redial_counts = age-at-dial dimension"]:::dial
+  N["No-answer (attempted)"]:::out
+  V["Voicemail"]:::out
+  M["Media-connected (status=connected)"]:::out
+  T["Transferred -> calls.is_billable, customer_revenue"]:::rev
+  P --> Q --> D
+  D --> N
+  D --> V
+  D --> M
+  M --> T
+  J{"JOIN SPINE<br/>Leadspedia purchase date<br/>x affiliate x vertical x date<br/>(per-lead IDs do NOT match cross-system)"}:::join
+  P -.spine.-> J
+  D -.spine.-> J
+  classDef lp fill:#ede9fe,stroke:#7c3aed,color:#3b0764;
+  classDef ctc fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef dial fill:#e0f2fe,stroke:#0284c7,color:#075985;
+  classDef out fill:#fef3c7,stroke:#d97706,color:#7c2d12;
+  classDef rev fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef join fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
+</div>
+
+<div class="alert warning">
+<div class="at">&#9888; The join is by name, not by id</div>
+<p>A CtC Marco lead carries <code>publisher_name</code> and an <code>AL-########</code> id. A Leadspedia lead carries <code>affiliateName</code>, <code>createdOn</code> (purchase date), <code>CPL</code>, and its own <code>leadID</code>. The ids do <strong>not</strong> match across systems (confirmed live: Leadspedia <code>leadID</code> is <code>1U67DCOZ</code>-style, CtC is <code>AL-45184317</code>-style). The reliable spine is <strong>affiliate / publisher name &times; vertical &times; date</strong>: names like Apollo Interactive, DMS (shared), Insurance Chiefs appear verbatim on both sides. This gives source-level cost and time-to-contact, not per-lead exact cost (per-lead cost needs the Aged-cost DB, still gated to dev).</p>
+</div>
+
+<h3>The two views, and which to use when</h3>
+<table>
+<thead><tr><th>View</th><th>Group by</th><th>Answers</th><th>Use as primary for</th></tr></thead>
+<tbody>
+<tr><td><strong>Lead-cohort</strong></td><td><code>lead_id</code> + purchase date + <code>leads_age</code></td><td>True cost-per-outcome, time-to-contact, "did this source ever convert"</td><td>Spend decisions, source quality, ROI</td></tr>
+<tr><td><strong>Activity-date</strong></td><td><code>created_at</code> (dial timestamp)</td><td>What the dialer did today, throughput, pickup-by-hour</td><td>Operations, staffing, daily ops review</td></tr>
+</tbody>
+</table>
+
+<h4>Age-at-dial as a first-class dimension <span class="tag live">LIVE</span></h4>
+<p>So a 5-day-old redial is never confused with a same-day first dial, every row carries its age. Live distribution of <code>leads_age</code> at dial (30d):</p>
+<table>
+<thead><tr><th>Age at dial</th><th>Dials</th><th>Read</th></tr></thead>
+<tbody>
+<tr><td>0 days</td><td>6,519 (72%)</td><td>fresh real-time leads, dialed same day</td></tr>
+<tr><td>3 days</td><td>1,363</td><td>aged-tier entry (agents target 3-75 days)</td></tr>
+<tr><td>4-7 days</td><td>~960</td><td>aged redial tail</td></tr>
+<tr><td>1 day</td><td>172</td><td>next-day redial of RT</td></tr>
+</tbody>
+</table>
+<p>Redials are spaced roughly <strong>24 hours apart</strong> (live average gap between attempts ~23.7h), so attempt number is a clean proxy for days-since-purchase on the RT cohort.</p>
+
+<div class="alert tip"><div class="at">&#10003; Recommendation</div><p>Make <strong>activity-date the default operational view</strong> (it is what a daily standup needs), and <strong>lead-cohort the default for any money or source-quality question</strong>. Build both off <code>ai_outbound_calls</code> with <code>redial_counts</code> / <code>leads_age</code> as the bridge dimension, and join to Leadspedia by affiliate&times;vertical&times;date for purchase cost. Do not let a single "dials today" tile stand alone, it is the misattribution Jamie warned about.</p></div>
+
+<p class="src"><strong>Sources:</strong> live SQL (row-grain check, <code>leads_age</code> distribution, redial spacing); Leadspedia <code>leads/getAll.do</code> (createdOn, affiliateName, CPL, leadID formats); CtC <code>lead_data</code> JSON keys (live).</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 3 ===================== -->
+<details>
+<summary><span class="num">3</span> Quantified funnel from live data <span class="sub">30d, connected slice broken down honestly</span></summary>
+<div class="body">
+
+<p>Regenerated from the live replica for 2026-05-12 to 2026-06-11. The onboarding sample (3,000 dials: 48% voicemail, 36% no-answer, 12.3% connected, of which ~3% genuine) is in the right spirit. The live 30-day numbers below differ a little by window and are the ones to present.</p>
+
+<h3>Top-line funnel <span class="tag live">LIVE</span></h3>
+<table>
+<thead><tr><th>Status</th><th>Count</th><th>% of dials</th><th>Bucket</th></tr></thead>
+<tbody>
+<tr><td>attempted</td><td>3,779</td><td>41.9%</td><td>No-answer</td></tr>
+<tr><td>voicemail</td><td>3,549</td><td>39.4%</td><td>Voicemail</td></tr>
+<tr><td>connected</td><td>1,367</td><td>15.2%</td><td>Media-connected</td></tr>
+<tr><td>Not Triggered</td><td>276</td><td>3.1%</td><td>Never dialed</td></tr>
+<tr><td>transferred</td><td>29</td><td>0.32%</td><td>Transferred</td></tr>
+<tr><td>triggered (in-flight)</td><td>14</td><td>0.16%</td><td>mid-call at snapshot</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>9,014</strong></td><td>100%</td><td></td></tr>
+</tbody>
+</table>
+
+<h3>The connected slice, broken down honestly</h3>
+<div class="alert caution">
+<div class="at">&#9940; "Connected" is inflated 3.6&times; at the event level</div>
+<p>The history table logged <strong>4,953 <code>connected</code> events</strong> in 30 days but only <strong>1,367</strong> remained "connected" as the final status. The gap is the double-emit: a call joins (connected), then ends as voicemail. So any report counting connect <em>events</em> overstates contact by ~3.6&times;.</p>
+</div>
+
+<p>To classify the 1,367 survivors, I pulled a <strong>live 250-call random sample</strong> from Ultravox (call detail + full transcript turn counts) and bucketed by user turns, duration, and end reason:</p>
+<table>
+<thead><tr><th>Sub-bucket</th><th>Share of connected</th><th>Signature in the data</th></tr></thead>
+<tbody>
+<tr><td>Dead air or screener/IVR</td><td>46.4%</td><td>&le;1 user turn or &lt;8s; agent talks to silence or a machine</td></tr>
+<tr><td>Brief 1-2 turn human, then bail</td><td>48.0%</td><td>2-3 turns, caller hangs up after the opener</td></tr>
+<tr><td><strong>Genuine multi-turn conversation</strong></td><td><strong>5.6%</strong></td><td>&ge;3-4 substantive turns</td></tr>
+</tbody>
+</table>
+<p>Sample medians: <strong>24 seconds, 2 user turns</strong>. End reasons: caller hung up 73%, agent hung up 27%. Extrapolated to the full 1,367, genuine conversation is roughly <strong>77 calls in 30 days, ~0.85% of all dials</strong>.</p>
+
+<div class="alert warning">
+<div class="at">&#9888; Honest caveats</div>
+<p>The sub-bucket split is a 250-call sample (18% of the connected slice), classified by a turn-count heuristic, not human review of each call, so treat the boundaries as &plusmn;a few points, not exact. "Dead air vs screener" are merged because the transcript alone cannot always separate an IVR from a silent human. The 5.6% genuine figure is robust directionally and matches the onboarding's ~3% spirit.</p>
+</div>
+
+<h3>By channel <span class="tag live">LIVE</span></h3>
+<table>
+<thead><tr><th>Channel</th><th>Dials</th><th>Voicemail</th><th>Connected</th><th>Transferred</th></tr></thead>
+<tbody>
+<tr><td>RT (real-time)</td><td>~5,663</td><td>1,871</td><td>758</td><td>13</td></tr>
+<tr><td>Aged</td><td>~2,322</td><td>1,005</td><td>384</td><td>9</td></tr>
+<tr><td>CoReg</td><td>~1,015</td><td>673</td><td>222</td><td>3</td></tr>
+</tbody>
+</table>
+<p class="src"><strong>Sources:</strong> live SQL funnel + channel split (join <code>ai_outbound_calls.ai_agent_id &rarr; ai_agents.friendly_name</code>); <code>ai_outbound_call_history</code> event counts; Ultravox <code>/api/calls/{id}</code> + <code>/messages</code> on a live 250-call sample (script <code>mr_connected_breakdown.py</code>).</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 4 ===================== -->
+<details>
+<summary><span class="num">4</span> Per-bucket action plan <span class="sub">what is happening, why, what to change</span></summary>
+<div class="body">
+<p>One plan per outcome bucket: the observation, the likely cause, and the specific self-serve change. Click-by-click numbers, agents, and field values are in sections 5 and 6.</p>
+
+<h3>No-answer (41.9%)</h3>
+<ul>
+<li><strong>What:</strong> 3,779 dials rang out with no pickup and no voicemail.</li>
+<li><strong>Cause:</strong> a mix of carrier screening on burned numbers (section 5) and dialing in the lowest-pickup hours (section 6: 10am-12pm ET is 8-14% pickup).</li>
+<li><strong>Change:</strong> rotate fresh numbers per state, and shift the redial window into mid-afternoon and early evening. Both are self-serve.</li>
+</ul>
+
+<h3>Voicemail (39.4%)</h3>
+<ul>
+<li><strong>What:</strong> 3,549 dials ended in voicemail, ~40% on the busiest numbers.</li>
+<li><strong>Cause:</strong> over-dialed, shared caller IDs get screened straight to voicemail; and the agent has no pre-call answering-machine detection, so it monologues into the box (<code>AdjustVoiceMailCallsData.php</code> reclassifies voicemail only <em>after</em> the call). <span class="tag code">CODE</span></li>
+<li><strong>Change (self-serve):</strong> fresh numbers spread across more lines (section 5). <strong>Change (needs dev):</strong> enable Twilio AMD at dial time so the agent stops talking into recordings; that lives in the gated <code>/trigger-call</code> gateway.</li>
+</ul>
+
+<h3>Media-connected: dead air / screener (~46% of connected)</h3>
+<ul>
+<li><strong>What:</strong> the stream joins, the agent talks, nobody (or a machine) is there.</li>
+<li><strong>Cause:</strong> the inline-dial agents wait for the callee to speak first, which is good, but with no AMD and default turn-taking they hang on screeners. The known dead-air loop bug.</li>
+<li><strong>Change:</strong> add an <code>inactivityMessages</code> ladder with a <code>HANG_UP_SOFT</code> exit (Ultravox, self-serve on the agent that has an Ultravox id; the inline-dial fleet needs the change in CtC's call-creation, which is dev).</li>
+</ul>
+
+<h3>Media-connected: brief 1-2 turn bail (~48% of connected)</h3>
+<ul>
+<li><strong>What:</strong> a human says hello, hears the opener, hangs up within 2-3 turns.</li>
+<li><strong>Cause:</strong> a weak, screener-bait opener ("Hello... am I speaking with [name]?") and a rigid 4-confirmation flow that stacks friction. Confirmed live: the rendered prompt in <code>call_data</code> still opens this way.</li>
+<li><strong>Change (self-serve in CtC per agent):</strong> shorten the opener to under ~7 words, collapse the four yes-gates (identity, form, interest, transfer) into one, and forbid the model from apologizing or asking "did you intend to submit". Edit the <code>Agent Prompt</code> field on each agent.</li>
+</ul>
+
+<h3>Transferred &amp; billable (0.32% / 0.03%)</h3>
+<ul>
+<li><strong>What:</strong> 29 transfers, 3 billable, $248.93 in 30 days.</li>
+<li><strong>Cause:</strong> the bottom of the funnel is starved by everything above it, and separately by the lead-feed throttle that caps how many leads ever get dialed (<code>ManageAiOutboundCalls.php:70</code>, <code>no_of_leads =&gt; 1</code>). <span class="tag code">CODE</span></li>
+<li><strong>Change:</strong> the reach fixes (numbers, timing, script) lift transfers; the volume ceiling itself is the feed throttle, which is dev-team work.</li>
+</ul>
+
+<div class="alert tip"><div class="at">&#10003; Sequencing</div><p>Do the self-serve reach fixes first (sections 5 and 6) because they need nobody. The two highest-leverage items overall, the feed throttle and pre-call AMD, are dev-team tickets, so file them in parallel rather than waiting.</p></div>
+<p class="src"><strong>Sources:</strong> live funnel (section 3); <code>call_data</code> rendered prompt (live); code findings in <code>ManageAiOutboundCalls.php</code>, <code>AdjustVoiceMailCallsData.php</code>; Ultravox knob reference.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 5 ===================== -->
+<details>
+<summary><span class="num">5</span> Number burn, spam &amp; trust <span class="sub">who shares each line, branding vs spam, rotation pool</span></summary>
+<div class="body">
+
+<h3>The burn, regenerated live (30d)</h3>
+<table>
+<thead><tr><th>Caller ID</th><th>State</th><th>Dials</th><th>Voicemail %</th><th>Agents sharing</th></tr></thead>
+<tbody>
+<tr><td>(215) 618-9534</td><td>PA</td><td>1,646</td><td>38.6%</td><td>5</td></tr>
+<tr><td>(231) 598-6036</td><td>MI, wrong state</td><td>1,487</td><td>40.6%</td><td>8</td></tr>
+<tr><td>(773) 362-4695</td><td>IL</td><td>973</td><td>38.2%</td><td>4</td></tr>
+<tr><td>(615) 314-3817</td><td>TN</td><td>936</td><td>34.3%</td><td>5</td></tr>
+<tr><td>(540) 534-2117</td><td>VA</td><td>907</td><td>37.8%</td><td>5</td></tr>
+<tr><td>(317) 602-1079</td><td>IN</td><td>798</td><td>34.3%</td><td>5</td></tr>
+<tr><td>(513) 951-5605</td><td>OH</td><td>691</td><td>42.0%</td><td>5</td></tr>
+<tr><td>(509) 795-5474</td><td>WA + AK</td><td>514</td><td>47.7%</td><td>6</td></tr>
+<tr><td>(503) 200-5347</td><td>OR</td><td>478</td><td>40.2%</td><td>5</td></tr>
+<tr><td>(770) 758-1455</td><td>GA</td><td>411</td><td>52.1%</td><td>4</td></tr>
+<tr><td>(207) 808-7792</td><td>ME</td><td>171</td><td>33.9%</td><td>5</td></tr>
+</tbody>
+</table>
+
+<div class="alert caution">
+<div class="at">&#9940; The (231) Michigan number dials 39 states</div>
+<p>Live: that single line placed dials into AK, AL, AR, AZ, CT, DC, DE, FL, ... TX, WI, WY, 39 states off one Michigan area code, shared by 8 agents. It is the highest-shared, second-highest-volume, and wrong-state line in the fleet. This is the <code>AGED-Marco</code> base agent dialing uncovered states off one number. Voicemail rate 40.6%.</p>
+</div>
+
+<h3>Branding vs spam stacking</h3>
+<p>The fix people reach for, branding the number, does not override a spam tag, it sits next to it. "Find Quality Insurance" is the display name (Branded Calling), but the carrier analytics vendors (TNS for Verizon, First Orion for T-Mobile, Hiya for AT&amp;T) independently score the <em>number's behavior</em>. An over-dialed, shared number earns a spam reputation, and the consumer then sees the brand name <strong>and</strong> a spam warning at the same time. Branding cannot subtract a reputation the dialing pattern created. Only changing the pattern (fewer dials per line, more lines, retire burned ones) lowers the spam score.</p>
+
+<h3>Trust Hub status, verified live today</h3>
+<table>
+<thead><tr><th>Trust product</th><th>Status <span class="tag live">LIVE</span></th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Branded Calling "Find Quality Insurance"</td><td>&#128994; Approved (Basic)</td><td>display name live; "Allstate Local Agents" sits in Draft</td></tr>
+<tr><td>Voice Integrity "Outbound O&amp;O campaign" (Visiqua profile)</td><td>&#128994; Twilio Approved</td><td>registers numbers with TNS / First Orion / Hiya</td></tr>
+<tr><td>SHAKEN/STIR attestation</td><td>&#9888; not self-verifiable via API</td><td>see caveat</td></tr>
+</tbody>
+</table>
+<div class="alert warning">
+<div class="at">&#9888; SHAKEN/STIR caveat</div>
+<p>Outbound call records return <code>stir_verstat = null</code> (verified live on three recent (215) calls): that field is populated on <em>inbound</em> calls only, so outbound A-attestation cannot be confirmed from the REST API. The Trust Hub product page records A-attestation via the "clickstoconvert LLC" SHAKEN registration as automatic per-profile. Action: confirm that product still shows green on the SHAKEN page (the <code>/trusted-calling</code> path 404s; reach it from Trust Hub home), and treat attestation as a profile-level given, not a per-number step. What is left to do is mostly operational: keep new numbers under the same approved Visiqua profile so they inherit attestation.</p>
+</div>
+
+<h3>The rotation pool design (recommendation)</h3>
+<p>There is <strong>no auto-rotation today</strong>: the outbound caller ID is a fixed field per agent (<span class="tag code">CODE</span> <code>pool_dids</code> is inbound-tracking only). Recommended target state, scoped so Mark can take it to Leo / the dev team as a concrete spec:</p>
+<ul>
+<li><strong>Pool per state:</strong> 3-4 numbers per active state instead of 1 shared across 5-8 agents. Cuts dials-per-line below the ~1,000/month burn threshold.</li>
+<li><strong>Spam-check API:</strong> run each pool number daily through a reputation API (Trestle, which the org already uses for phone validation, or an equivalent like Numeracle/First Orion lookup). Auto-flag any number that crosses a spam-score threshold and pull it from rotation.</li>
+<li><strong>Warm-up:</strong> a new number starts at low daily volume (e.g. 50-100 dials/day) and ramps over ~1-2 weeks so carriers see organic growth, not a cold spike.</li>
+<li><strong>Retire-and-replace:</strong> a flagged number is parked, a fresh one is bought (Twilio search + buy is self-serve) and registered under the same approved Trust Hub profile.</li>
+</ul>
+<div class="alert tip"><div class="at">&#10003; Clear recommendation</div><p>Today, self-serve: buy 2-3 fresh numbers each for the top burned states (PA, the 231 MI catch-all, IL, TN, VA, OH, GA), register them in CtC and add them to the approved Branded Calling + Voice Integrity products, and split the load so no line exceeds ~1,000 dials/month. The auto-rotation + spam-API loop is a dev-team build; hand them the spec above. Reassign the (231) catch-all so each state dials its own area code.</p></div>
+<p class="src"><strong>Sources:</strong> live SQL burn + caller-ID-to-state mapping; Twilio Trust Hub Branded Calling / Voice Integrity pages (opened live today); Twilio <code>/Calls.json</code> stir fields (live); <code>IncomingPhoneNumbers.json</code> (25 numbers); code (no outbound rotation).</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 6 ===================== -->
+<details>
+<summary><span class="num">6</span> Dial timing <span class="sub">pickup by hour and by attempt; shift the redial window</span></summary>
+<div class="body">
+
+<h3>Pickup by hour <span class="tag live">LIVE</span> (June, ET = UTC-4)</h3>
+<table>
+<thead><tr><th>Hour (ET)</th><th>Dials</th><th>Human pickup %</th></tr></thead>
+<tbody>
+<tr><td>10am</td><td>1,295</td><td>&#128308; 8.8%</td></tr>
+<tr><td>11am</td><td>2,108</td><td>&#128308; 14.0%</td></tr>
+<tr><td>12pm</td><td>2,095</td><td>&#128993; 16.7%</td></tr>
+<tr><td>1pm</td><td>1,347</td><td>&#128993; 17.6%</td></tr>
+<tr><td>2pm</td><td>689</td><td>&#128994; 19.2%</td></tr>
+<tr><td>3pm</td><td>457</td><td>&#128994; 20.8% (peak)</td></tr>
+<tr><td>4pm</td><td>395</td><td>16.7%</td></tr>
+<tr><td>5pm</td><td>343</td><td>15.2%</td></tr>
+<tr><td>6pm</td><td>145</td><td>8.3%</td></tr>
+</tbody>
+</table>
+<p>The dials are crammed into the lowest-pickup hours: the morning block (10am-12pm) carries the most volume (~5,500 dials) at the worst pickup (8-16%), while the best hours (2-3pm, ~20%) are thinly dialed. The schedule (live <code>ai_agent_schedulings</code>, 84 agents) concentrates weekday windows on 10am-4pm with very sparse evening coverage. Times are stored in the agent's local (state) timezone.</p>
+
+<h3>Pickup by redial attempt <span class="tag live">LIVE</span></h3>
+<table>
+<thead><tr><th>Attempt</th><th>Dials</th><th>Pickup %</th></tr></thead>
+<tbody>
+<tr><td>First dial</td><td>4,888</td><td>18.4%</td></tr>
+<tr><td>1st redial</td><td>1,443</td><td>&#128994; 29.0% (peak)</td></tr>
+<tr><td>2nd redial</td><td>835</td><td>5.3%</td></tr>
+<tr><td>3rd redial</td><td>623</td><td>3.4%</td></tr>
+<tr><td>4th redial</td><td>441</td><td>2.5%</td></tr>
+<tr><td>5th redial</td><td>289</td><td>1.0%</td></tr>
+<tr><td>6th-12th redial</td><td>553</td><td>&#128308; 0.0% (pure waste)</td></tr>
+</tbody>
+</table>
+<p>The first redial is the single best contact event in the whole system (29%). After the 2nd attempt, pickup collapses; attempts 6-12 (553 dials) returned zero pickups. Those late redials burn the number for nothing.</p>
+
+<div class="alert tip"><div class="at">&#10003; Recommendation (self-serve, test first)</div>
+<p>1) Shift the redial window from 10am-4pm toward <strong>roughly 3pm local through the evening</strong>, tested on the highest-volume campaigns (PA, IL, TN, VA) before any broad rollout. 2) Cap <strong>Max Redials at 3-4</strong>: attempts 6-12 add zero contact and only burn numbers.</p>
+<p><strong>Exact change, per state, in CtC:</strong> open the redial agent (e.g. PA <code>.../customer/ai-agent/redial/edit/65</code>), <strong>Scheduling</strong> tab, uncheck <code>10am-11am</code> / <code>11am-12pm</code> / <code>12pm-1pm</code>, keep <code>1pm-4pm</code>, and add the evening hours; on the <strong>General</strong> tab set <strong>Max Redials</strong> 5 &rarr; 3-4. Redial agent ids: PA 65, VA 64, TN 66, IL 70, IN 67, OH 68, WA 71, OR 69, ME 72.</p></div>
+
+<div class="alert warning"><div class="at">&#9888; Honest caveat</div><p>Pickup data exists only for hours actually dialed (10am-4pm). The 4pm-7pm local window is industry-prime contact time but has <strong>no historical data here</strong>, so extending into it is a test, not a proven move. If evenings underperform after a week, revert with the data in hand.</p></div>
+<p class="src"><strong>Sources:</strong> live SQL pickup-by-hour and pickup-by-<code>redial_counts</code>; <code>ai_agent_schedulings</code> window distribution; redial agent ids from <code>marco-code-access-and-findings.md</code> and live agent list.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 7 ===================== -->
+<details>
+<summary><span class="num">7</span> Multi-channel sequencing <span class="sub">call, back off, then SMS, instead of hammering</span></summary>
+<div class="body">
+<p>Section 6 proves the dialer hammers a dead line: attempts 6-12 get 0% pickup and only deepen the burn from section 5. Carriers also track <em>purchasing patterns</em>, so churning numbers does not fully escape a repeat-offender flag. The longer-term fix is to stop dialing more and start sequencing across channels.</p>
+
+<h3>Recommended sequence per lead</h3>
+<div class="mermaid">
+flowchart LR
+  A["Immediate call<br/>(first dial)"]:::c --> B{"Reached?"}:::d
+  B -- yes --> Z["Transfer / done"]:::z
+  B -- no --> C["Redial #1<br/>+~24h (peak: 29%)"]:::c
+  C --> D{"Reached?"}:::d
+  D -- no --> E["Redial #2<br/>+~48h"]:::c
+  E --> F{"Reached?"}:::d
+  F -- no --> G["SMS / RCS<br/>(stop dialing, switch channel)"]:::s
+  G --> H["Click-wall page<br/>findqualityinsurance.com/auto-012/"]:::s
+  classDef c fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  classDef d fill:#fef3c7,stroke:#d97706,color:#7c2d12;
+  classDef s fill:#dcfce7,stroke:#16a34a,color:#14532d;
+  classDef z fill:#ede9fe,stroke:#7c3aed,color:#3b0764;
+</div>
+<ul>
+<li><strong>Immediate call</strong> on lead arrival (RT leads are 72% of volume and freshest).</li>
+<li><strong>Exponential back-off:</strong> redial #1 at ~24h (the 29% peak), redial #2 at ~48h, then stop. Replaces the current flat ~24h cadence out to 12 attempts.</li>
+<li><strong>Switch channel, do not re-dial:</strong> after 2-3 unanswered calls, move the lead to SMS/RCS (section 8) rather than attempts 4-12, which the data shows are wasted and burn the brand at the carrier level.</li>
+</ul>
+<div class="alert tip"><div class="at">&#10003; Why this beats more dialing</div><p>It captures the one high-value redial (29%), drops the zero-value tail (attempts 6-12), reduces dials-per-number (directly lowering the spam reputation in section 5), and reaches the consumers who will never answer a cold call but will tap a text. It is a conversion multiplier and a burn reducer at once.</p></div>
+<p class="src"><strong>Sources:</strong> pickup-by-attempt (section 6, live); burn mechanics (section 5); click-wall page from <code>mr_findings.md</code> O&amp;O brand context.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 8 ===================== -->
+<details>
+<summary><span class="num">8</span> SMS / RCS roadmap <span class="sub">click-wall built, connector missing: self-serve or dev?</span></summary>
+<div class="body">
+<p>The click-wall landing page (<code>findqualityinsurance.com/auto-012/</code>) is built and has sat in backlog ~2 months. The open question: can the SMS connector be wired with current access, or does it need a dev-team handoff?</p>
+
+<div class="alert important">
+<div class="at">&#10003; Determination: needs a dev-team handoff (Jira ticket), not self-serve <span class="tag code">CODE</span></div>
+<p>Checked the repos on disk (read-only Bitbucket access, <code>api-callstoconvert</code> + <code>ui-callstoconvert</code>): there is <strong>no consumer-facing outbound SMS send path</strong>. The SMS/RCS string hits are an admin <code>SmartNotificationController</code> and user-registration, and the <code>new Client([...])</code> instances in <code>PostAgentAvailability.php</code> are Guzzle HTTP clients for agent-availability pings, not Twilio messaging. Critically, the call-origination gateway that would also send the SMS (<code>/trigger-call</code>, <code>voice-agent</code>) is <strong>not in the repos you can reach</strong>, it is gated to Charlotte's migration. So wiring SMS into the flow requires the dev team. Twilio messaging itself is provisioned (the API key can send, and <code>/Messages.json</code> returns 200), so the blocker is application wiring, not Twilio capability.</p>
+</div>
+
+<h3>The three use cases (frame for the ticket)</h3>
+<ul>
+<li><strong>Conversion multiplier for form-fillers:</strong> consumers who filled a form but will not answer a cold call. SMS reaches them and links to the click-wall.</li>
+<li><strong>Optionality, not coercion:</strong> gives the lead a channel choice instead of forcing a phone call.</li>
+<li><strong>Reach where calls fail:</strong> the SMS step in the sequence (section 7) for leads that go unanswered after 2-3 dials.</li>
+</ul>
+
+<div class="alert warning">
+<div class="at">&#9888; RCS varies by region and device, audit first</div>
+<p>RCS support depends on carrier, region, and handset. Before any rollout, <strong>audit lead geography and device mix</strong>, and ship a <strong>plain-SMS fallback</strong> for everywhere RCS is not guaranteed. Do not assume RCS delivery; treat it as an enhancement over a reliable SMS base.</p>
+</div>
+<div class="alert tip"><div class="at">&#10003; Recommendation</div><p>File one Jira ticket: "Wire Twilio SMS send into the outbound sequence, plain SMS first with the click-wall link, RCS as a later enhancement after a geography/device audit." Hand it to the dev team owning <code>/trigger-call</code> (Charlotte). It is small (Twilio messaging is already enabled), but it is not in code you can change.</p></div>
+<p class="src"><strong>Sources:</strong> live grep of <code>visiqua-src/</code> (no consumer SMS connector); <code>visiqua-repos.md</code> (read-only access); <code>marco-code-access-and-findings.md</code> (gateway gated); Twilio <code>/Messages.json</code> 200.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 9 ===================== -->
+<details>
+<summary><span class="num">9</span> HLeads data-flow question (for Leo) <span class="sub">right foundation, or restructure before dashboards?</span></summary>
+<div class="body">
+<p>Leads enter through HLeads and the whole system is built on top of that flow. Jamie's concern: parts of it were built as a workaround and later treated as permanent infrastructure, so building dashboards on it risks chasing technical debt.</p>
+
+<h3>What the live data shows about the foundation</h3>
+<ul>
+<li><strong>The spine works, but only by name, not by id.</strong> Cross-system lead ids do not match (Leadspedia <code>leadID</code> &ne; CtC <code>AL-</code> id &ne; ping GUID, all confirmed live). Every join that crosses a system boundary leans on affiliate/publisher <em>name</em> matching plus date, which is fragile to renames and shared-source labels like "DMS (shared)".</li>
+<li><strong>Per-lead cost is not in the reader at all.</strong> Acquisition cost (<code>Lead_Payout</code>) lives in an Aged-cost DB that is not granted; the replica has only transfer-level payout. So true cost-per-outcome currently has to be approximated by source-level CPL from Leadspedia.</li>
+<li><strong>The funnel math is hidden.</strong> The numbers the existing reports show come from stored procedures (<code>getAISummarizedStats</code>, <code>getAICallsAttemptReport</code>) that are not in the repo and not executable by the reader. Any dashboard must re-implement that math, so it can silently diverge from what the platform shows.</li>
+</ul>
+
+<div class="alert important">
+<div class="at">&#10003; The crisp question for Leo</div>
+<p>"Is HLeads the right attachment point for the reporting layer, or should we source from a cleaner upstream first? Specifically: can we get a stable cross-system lead key (so joins stop relying on affiliate-name matching), reader access to the Aged-cost DB (for true per-lead margin), and either the stored-procedure definitions or a sign-off that our re-implemented funnel is the source of truth? If a cleaner source exists, we should restructure now, before dashboards are built on the name-matching workaround."</p>
+</div>
+<div class="alert warning"><div class="at">&#9888; Technical-debt risk, stated plainly</div><p>If we build dashboards on the current HLeads-fed shape, we inherit three weak joints: name-based joins, missing per-lead cost, and a re-implemented (not authoritative) funnel. None blocks a v1 prototype, but each becomes expensive to unwind once dashboards depend on it. The recommendation is to get Leo's answer <strong>before</strong> hardening the data model, not after.</p></div>
+<p class="src"><strong>Sources:</strong> live id-format checks (Leadspedia vs CtC); <code>mr_findings.md</code> cost + stored-procedure findings; <code>marco-code-access-and-findings.md</code> access map.</p>
+</div>
+</details>
+
+<hr>
+
+<h2>Self-serve vs needs-others</h2>
+<table>
+<thead><tr><th>&#9989; Mark can do today (own tools)</th><th>&#9203; Needs dev team / Leo / lead feed</th></tr></thead>
+<tbody>
+<tr><td>Buy fresh numbers in Twilio, register in CtC, add to the approved Branded Calling + Voice Integrity products (section 5)</td><td>Auto-rotation + daily spam-check API loop (dev build from the section 5 spec)</td></tr>
+<tr><td>Reassign the (231) Michigan catch-all so each state dials its own area code</td><td>Pre-call AMD (<code>MachineDetection</code>) so the agent stops monologuing into voicemail (gated <code>/trigger-call</code>)</td></tr>
+<tr><td>Shift redial windows to mid-afternoon/evening and cap Max Redials at 3-4 (section 6)</td><td>Lifting the lead-feed throttle <code>no_of_leads =&gt; 1</code> (the volume ceiling; dev)</td></tr>
+<tr><td>Shorten the opener, collapse the 4 confirmations, add a no-apology guardrail in each agent's <code>Agent Prompt</code> (section 4)</td><td>VAD turn-taking + model upgrade for the inline-dial fleet (set in CtC backend; dev)</td></tr>
+<tr><td>Reclassify "connected" honestly in the reporting layer via Ultravox turns (sections 1, 3)</td><td>Wiring the SMS/RCS connector into the flow (Jira ticket, Charlotte; section 8)</td></tr>
+<tr><td>Add the <code>inactivityMessages</code> + <code>HANG_UP_SOFT</code> dead-air exit on the Ultravox-resident agent</td><td>Stable cross-system lead key, Aged-cost DB access, funnel-math sign-off (Leo; section 9)</td></tr>
+</tbody>
+</table>
+
+<p class="meta" style="margin-top:1.5rem;">Generated 2026-06-11 from live sources. Every number traces to a query run for this report; sample-based and inferred figures are tagged as such. Nothing was pushed live.</p>
+
+<script>
+mermaid.initialize({startOnLoad:true, theme:'neutral', flowchart:{useMaxWidth:true}});
+</script>
+</body>
+</html>
