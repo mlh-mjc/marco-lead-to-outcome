@@ -74,7 +74,8 @@ small{color:var(--muted);}
 <h1>Marco Lead-to-Outcome Lineage</h1>
 <p class="meta"><strong>Version 1</strong> &nbsp;&middot;&nbsp; Built for the Tuesday sync, shared with Adam Wednesday &nbsp;&middot;&nbsp; Date: 2026-06-11<br>
 <strong>Sources (all queried live for this report, not copied from v5):</strong> CtC production read-replica (MariaDB 10.6, <code>callstoconvert_prod_db</code>), Ultravox API (<code>X-API-Key</code>), Leadspedia Core API, Twilio REST API + Trust Hub console, Hannah's O&amp;O Daily Tracking sheet, and the dialer source (<code>api-callstoconvert</code> / <code>ui-callstoconvert</code>, read-only).<br>
-<strong>Window:</strong> last 30 days, 2026-05-12 to 2026-06-11, unless stated. Nothing here is pushed live. Every fix is yours to apply.</p>
+<strong>Window:</strong> last 30 days, 2026-05-12 to 2026-06-11, unless stated. Nothing here is pushed live. Every fix is yours to apply.<br>
+<strong>Companion:</strong> the exact click-by-click steps for the self-serve fixes (buy/register numbers, retime redials, paste prompts) live in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan</a>.</p>
 
 <div class="alert note">
 <div class="at">&#9432; How to use this document</div>
@@ -178,6 +179,11 @@ small{color:var(--muted);}
 <div class="alert important">
 <div class="at">&#10003; The key structural fact (verified live)</div>
 <p><code>ai_outbound_calls</code> is <strong>one row per dial attempt</strong>, not one row per lead. In 30 days: 9,014 rows, 9,012 distinct ping IDs, but only <strong>5,037 distinct leads</strong> (~1.8 dials each). The attempt index lives on each row in <code>redial_counts</code> (NULL/0 = first dial, 1 = first redial, up to 12), and those buckets sum exactly to 9,014. So both views come from the same table, cut two different ways. No second source is needed.</p>
+</div>
+
+<div class="alert warning">
+<div class="at">&#9888; Why only ~1.8 dials/lead when redials are set to 5 (verified live)</div>
+<p>The cap of 5 (on the 22 live RT and CoReg redial agents) is a ceiling, not a floor, and it almost never binds. <strong>72% of leads are dialed exactly once</strong> and never retried, even when that first dial hit voicemail or no-answer (~2,700 such leads in 30 days). It is not right-censoring: even mature leads with 11+ days of runway are 68% one-and-done. Two root causes: (1) the hourly cap (5) plus the lead-feed throttle starve the redial driver of capacity, and (2) <strong>the Aged channel has no redial agent at all</strong> (redial agents exist only for RT and CoReg), so aged leads are single-dial by design. Fixes in sections 4 and 6.</p>
 </div>
 
 <h3>The lineage and the join</h3>
@@ -291,7 +297,12 @@ flowchart TD
 <tr><td>CoReg</td><td>~1,015</td><td>673</td><td>222</td><td>3</td></tr>
 </tbody>
 </table>
-<p class="src"><strong>Sources:</strong> live SQL funnel + channel split (join <code>ai_outbound_calls.ai_agent_id &rarr; ai_agents.friendly_name</code>); <code>ai_outbound_call_history</code> event counts; Ultravox <code>/api/calls/{id}</code> + <code>/messages</code> on a live 250-call sample (script <code>mr_connected_breakdown.py</code>).</p>
+<div class="alert caution">
+<div class="at">&#9940; Do not read this table as "Aged/CoReg convert better than RT"</div>
+<p>Transfer-per-dial by month tells the real story. RT was historically the strongest channel by far (Jan 4.06%, Feb 2.52%, Apr 3.78%) versus Aged 0.6-1.05%. Then <strong>RT collapsed: 0.33% in May, 0.23% in June</strong>, roughly a 10x drop, after RT volume was scaled ~7x (768 dials in April to 5,708 in May) onto the same burned numbers while absolute transfers stayed flat (~29 to 19). Aged and CoReg only appear to "lead" recently because RT fell below them, not because they improved. All three now sit at 0.2-0.5%, where monthly transfer counts (2-19) are too small to rank reliably. The actionable signal is RT's collapse under volume-onto-burn, which the section 5 number fixes address.</p>
+</div>
+
+<p class="src"><strong>Sources:</strong> live SQL funnel + channel split (join <code>ai_outbound_calls.ai_agent_id &rarr; ai_agents.friendly_name</code>); <code>ai_outbound_call_history</code> event counts; Ultravox <code>/api/calls/{id}</code> + <code>/messages</code> on a live 250-call sample (script <code>connected_breakdown.py</code>).</p>
 </div>
 </details>
 
@@ -312,27 +323,27 @@ flowchart TD
 <ul>
 <li><strong>What:</strong> 3,549 dials ended in voicemail, ~40% on the busiest numbers.</li>
 <li><strong>Cause:</strong> over-dialed, shared caller IDs get screened straight to voicemail; and the agent has no pre-call answering-machine detection, so it monologues into the box (<code>AdjustVoiceMailCallsData.php</code> reclassifies voicemail only <em>after</em> the call). <span class="tag code">CODE</span></li>
-<li><strong>Change (self-serve):</strong> fresh numbers spread across more lines (section 5). <strong>Change (needs dev):</strong> enable Twilio AMD at dial time so the agent stops talking into recordings; that lives in the gated <code>/trigger-call</code> gateway.</li>
+<li><strong>Change (self-serve):</strong> fresh numbers spread across more lines (section 5), plus sharpen the voicemail-handling wording in the CtC <code>Agent Prompt</code> so the model fires <code>leaveVoicemail</code> sooner. <strong>Change (needs dev):</strong> true pre-answer Twilio AMD. CtC writes the script, but the <strong>gateway places the actual Twilio call</strong>, and AMD (<code>MachineDetection</code>) is a per-call parameter on that call-creation (there is no Twilio account or console toggle for it, verified), so it can only be set in the gated <code>/trigger-call</code> gateway. AMD is off today (<code>answered_by</code> null on every sampled call, confirmed live).</li>
 </ul>
 
 <h3>Media-connected: dead air / screener (~46% of connected)</h3>
 <ul>
 <li><strong>What:</strong> the stream joins, the agent talks, nobody (or a machine) is there.</li>
 <li><strong>Cause:</strong> the inline-dial agents wait for the callee to speak first, which is good, but with no AMD and default turn-taking they hang on screeners. The known dead-air loop bug.</li>
-<li><strong>Change:</strong> add an <code>inactivityMessages</code> ladder with a <code>HANG_UP_SOFT</code> exit (Ultravox, self-serve on the agent that has an Ultravox id; the inline-dial fleet needs the change in CtC's call-creation, which is dev).</li>
+<li><strong>Change (dev for the whole outbound fleet):</strong> add an <code>inactivityMessages</code> ladder with a <code>HANG_UP_SOFT</code> exit. Verified live: <strong>100% of outbound dials are inline (<code>agentId</code> null), 0% run on a registered Ultravox agent</strong>, and <code>inactivityMessages</code> is call-config the gateway creates, not prompt text, so this is a gateway change, not self-serve. The only self-serve dead-air lever you have on outbound is the prompt wording in CtC (weaker).</li>
 </ul>
 
 <h3>Media-connected: brief 1-2 turn bail (~48% of connected)</h3>
 <ul>
 <li><strong>What:</strong> a human says hello, hears the opener, hangs up within 2-3 turns.</li>
 <li><strong>Cause:</strong> a weak, screener-bait opener ("Hello... am I speaking with [name]?") and a rigid 4-confirmation flow that stacks friction. Confirmed live: the rendered prompt in <code>call_data</code> still opens this way.</li>
-<li><strong>Change (self-serve in CtC per agent):</strong> shorten the opener to under ~7 words, collapse the four yes-gates (identity, form, interest, transfer) into one, and forbid the model from apologizing or asking "did you intend to submit". Edit the <code>Agent Prompt</code> field on each agent.</li>
+<li><strong>Change (self-serve in CtC per agent):</strong> shorten the opener to under ~7 words, collapse the four yes-gates (identity, form, interest, transfer) into one, and forbid the model from apologizing or asking "did you intend to submit". Edit the <code>Agent Prompt</code> field on each agent. The full replacement prompt and the exact per-agent edit URLs are in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan (click-by-click)</a>.</li>
 </ul>
 
 <h3>Transferred &amp; billable (0.32% / 0.03%)</h3>
 <ul>
 <li><strong>What:</strong> 29 transfers, 3 billable, $248.93 in 30 days.</li>
-<li><strong>Cause:</strong> the bottom of the funnel is starved by everything above it, and separately by the lead-feed throttle that caps how many leads ever get dialed (<code>ManageAiOutboundCalls.php:70</code>, <code>no_of_leads =&gt; 1</code>). <span class="tag code">CODE</span></li>
+<li><strong>Cause:</strong> the bottom of the funnel is starved by everything above it, and separately by the lead-feed throttle. The dialer literally computes the right batch size (<code>ManageAiOutboundCalls.php:66</code>, <code>$hourlyCap = min(hourly_cap, daily_cap)</code>) and then on the very next line throws it away, hardcoding <code>"no_of_leads" =&gt; 1, //$hourlyCap</code> (the correct value sits commented out one line away). So each agent pulls exactly one lead per run. <span class="tag code">CODE</span></li>
 <li><strong>Change:</strong> the reach fixes (numbers, timing, script) lift transfers; the volume ceiling itself is the feed throttle, which is dev-team work.</li>
 </ul>
 
@@ -387,14 +398,14 @@ flowchart TD
 </div>
 
 <h3>The rotation pool design (recommendation)</h3>
-<p>There is <strong>no auto-rotation today</strong>: the outbound caller ID is a fixed field per agent (<span class="tag code">CODE</span> <code>pool_dids</code> is inbound-tracking only). Recommended target state, scoped so Mark can take it to Leo / the dev team as a concrete spec:</p>
+<p>There is <strong>no auto-rotation today</strong>: the outbound caller ID is a fixed field per agent (<span class="tag code">CODE</span> <code>pool_dids</code> is inbound-tracking only). Verified across both code hosts: the gateway simply dials from whatever number CtC hands it (<code>from: twilio_number</code>), and a read of all 98 Local-Hero-LLC GitHub repos plus the Bitbucket dialer found <strong>zero rotation logic anywhere</strong>. Recommended target state, scoped so Mark can take it to Leo / the dev team as a concrete spec:</p>
 <ul>
 <li><strong>Pool per state:</strong> 3-4 numbers per active state instead of 1 shared across 5-8 agents. Cuts dials-per-line below the ~1,000/month burn threshold.</li>
-<li><strong>Spam-check API:</strong> run each pool number daily through a reputation API (Trestle, which the org already uses for phone validation, or an equivalent like Numeracle/First Orion lookup). Auto-flag any number that crosses a spam-score threshold and pull it from rotation.</li>
+<li><strong>Spam-check API:</strong> run each pool number daily through a <strong>caller-ID reputation</strong> vendor (Numeracle, First Orion, or Hiya) and auto-retire any number that crosses a spam-score threshold. Verified caveat: this is <strong>not</strong> Trestle and <strong>not</strong> Twilio Lookup. Twilio Lookup has no spam/reputation field (confirmed live against the API), and Trestle scores the <em>consumer's</em> number for contactability, not whether <em>your</em> caller ID is flagged as spam. Checking your own DID's carrier spam label is a net-new vendor, not part of the current stack.</li>
 <li><strong>Warm-up:</strong> a new number starts at low daily volume (e.g. 50-100 dials/day) and ramps over ~1-2 weeks so carriers see organic growth, not a cold spike.</li>
 <li><strong>Retire-and-replace:</strong> a flagged number is parked, a fresh one is bought (Twilio search + buy is self-serve) and registered under the same approved Trust Hub profile.</li>
 </ul>
-<div class="alert tip"><div class="at">&#10003; Clear recommendation</div><p>Today, self-serve: buy 2-3 fresh numbers each for the top burned states (PA, the 231 MI catch-all, IL, TN, VA, OH, GA), register them in CtC and add them to the approved Branded Calling + Voice Integrity products, and split the load so no line exceeds ~1,000 dials/month. The auto-rotation + spam-API loop is a dev-team build; hand them the spec above. Reassign the (231) catch-all so each state dials its own area code.</p></div>
+<div class="alert tip"><div class="at">&#10003; Clear recommendation</div><p>Today, self-serve: buy 2-3 fresh numbers each for the top burned states (PA, the 231 MI catch-all, IL, TN, VA, OH, GA), register them in CtC and add them to the approved Branded Calling + Voice Integrity products, and split the load so no line exceeds ~1,000 dials/month. The exact buy-and-register click-by-click (Twilio search, CtC Add Outbound DID, Trust Hub assignment) is in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan</a>. The auto-rotation + spam-API loop is a dev-team build; hand them the spec above. Reassign the (231) catch-all so each state dials its own area code.</p></div>
 <p class="src"><strong>Sources:</strong> live SQL burn + caller-ID-to-state mapping; Twilio Trust Hub Branded Calling / Voice Integrity pages (opened live today); Twilio <code>/Calls.json</code> stir fields (live); <code>IncomingPhoneNumbers.json</code> (25 numbers); code (no outbound rotation).</p>
 </div>
 </details>
@@ -437,8 +448,8 @@ flowchart TD
 <p>The first redial is the single best contact event in the whole system (29%). After the 2nd attempt, pickup collapses; attempts 6-12 (553 dials) returned zero pickups. Those late redials burn the number for nothing.</p>
 
 <div class="alert tip"><div class="at">&#10003; Recommendation (self-serve, test first)</div>
-<p>1) Shift the redial window from 10am-4pm toward <strong>roughly 3pm local through the evening</strong>, tested on the highest-volume campaigns (PA, IL, TN, VA) before any broad rollout. 2) Cap <strong>Max Redials at 3-4</strong>: attempts 6-12 add zero contact and only burn numbers.</p>
-<p><strong>Exact change, per state, in CtC:</strong> open the redial agent (e.g. PA <code>.../customer/ai-agent/redial/edit/65</code>), <strong>Scheduling</strong> tab, uncheck <code>10am-11am</code> / <code>11am-12pm</code> / <code>12pm-1pm</code>, keep <code>1pm-4pm</code>, and add the evening hours; on the <strong>General</strong> tab set <strong>Max Redials</strong> 5 &rarr; 3-4. Redial agent ids: PA 65, VA 64, TN 66, IL 70, IN 67, OH 68, WA 71, OR 69, ME 72.</p></div>
+<p><strong>1) Re-balance the redials you already have.</strong> Cap <strong>Max Redials at 2-3</strong> (currently 5 on the 22 RT/CoReg redial agents): attempts 6-12 add zero contact and only burn numbers, and capping frees scarce capacity for more leads' first redial (the 29% peak). <strong>2) Shift the window</strong> from 10am-4pm toward <strong>~3pm local through the evening</strong>, tested on the highest-volume campaigns (PA, IL, TN, VA) first. <strong>3) Raise the hourly cap.</strong> Agents hit ~5.05 dials in active hours against an <code>hourly_cap</code> of 5, so it is actively throttling; raise it (e.g. 5 &rarr; 15) so redials actually run. <strong>4) Create an Aged redial agent.</strong> The Aged channel has none today, so aged leads never get retried; build per-state aged redial agents mirroring the RT redial config.</p>
+<p><strong>Exact change, per state, in CtC:</strong> open the redial agent (e.g. PA <code>.../customer/ai-agent/redial/edit/65</code>), <strong>Scheduling</strong> tab, uncheck <code>10am-11am</code> / <code>11am-12pm</code> / <code>12pm-1pm</code>, keep <code>1pm-4pm</code>, add the evening hours; on the <strong>General</strong> tab set <strong>Max Redials</strong> 5 &rarr; 2-3 and raise the hourly cap. Redial agent ids: PA 65, VA 64, TN 66, IL 70, IN 67, OH 68, WA 71, OR 69, ME 72. Full click-by-click in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan</a>.</p></div>
 
 <div class="alert warning"><div class="at">&#9888; Honest caveat</div><p>Pickup data exists only for hours actually dialed (10am-4pm). The 4pm-7pm local window is industry-prime contact time but has <strong>no historical data here</strong>, so extending into it is a test, not a proven move. If evenings underperform after a week, revert with the data in hand.</p></div>
 <p class="src"><strong>Sources:</strong> live SQL pickup-by-hour and pickup-by-<code>redial_counts</code>; <code>ai_agent_schedulings</code> window distribution; redial agent ids from <code>marco-code-access-and-findings.md</code> and live agent list.</p>
@@ -485,7 +496,7 @@ flowchart LR
 
 <div class="alert important">
 <div class="at">&#10003; Determination: needs a dev-team handoff (Jira ticket), not self-serve <span class="tag code">CODE</span></div>
-<p>Checked the repos on disk (read-only Bitbucket access, <code>api-callstoconvert</code> + <code>ui-callstoconvert</code>): there is <strong>no consumer-facing outbound SMS send path</strong>. The SMS/RCS string hits are an admin <code>SmartNotificationController</code> and user-registration, and the <code>new Client([...])</code> instances in <code>PostAgentAvailability.php</code> are Guzzle HTTP clients for agent-availability pings, not Twilio messaging. Critically, the call-origination gateway that would also send the SMS (<code>/trigger-call</code>, <code>voice-agent</code>) is <strong>not in the repos you can reach</strong>, it is gated to Charlotte's migration. So wiring SMS into the flow requires the dev team. Twilio messaging itself is provisioned (the API key can send, and <code>/Messages.json</code> returns 200), so the blocker is application wiring, not Twilio capability.</p>
+<p>Checked the repos on disk (read-only Bitbucket access, <code>api-callstoconvert</code> + <code>ui-callstoconvert</code>): there is <strong>no consumer-facing outbound SMS send path</strong>. The SMS/RCS string hits are an admin <code>SmartNotificationController</code> and user-registration, and the <code>new Client([...])</code> instances in <code>PostAgentAvailability.php</code> are Guzzle HTTP clients for agent-availability pings, not Twilio messaging. Critically, the call-origination gateway that would also send the SMS (<code>/trigger-call</code>, <code>voice-agent</code>) is <strong>not in the repos you can reach</strong>, it is gated to Charlotte's migration. So wiring SMS into the flow requires the dev team. Twilio messaging itself is provisioned (the API key can send, and <code>/Messages.json</code> returns 200), so the blocker is application wiring, not Twilio capability. Verified org-wide: a read of all 98 Local-Hero-LLC GitHub repos found no SMS send path either (the two voice services contain zero <code>messages.create</code> / <code>MessagingService</code> / RCS code), so nothing can send the text on any host today.</p>
 </div>
 
 <h3>The three use cases (frame for the ticket)</h3>
@@ -497,7 +508,7 @@ flowchart LR
 
 <div class="alert warning">
 <div class="at">&#9888; RCS varies by region and device, audit first</div>
-<p>RCS support depends on carrier, region, and handset. Before any rollout, <strong>audit lead geography and device mix</strong>, and ship a <strong>plain-SMS fallback</strong> for everywhere RCS is not guaranteed. Do not assume RCS delivery; treat it as an enhancement over a reliable SMS base.</p>
+<p>RCS support depends on carrier, region, and handset (independently confirmed: RCS is live on only a handful of carriers across the US, Canada, UK, Germany, Spain, Belgium, and France; Apple's iOS rollout is region- and carrier-dependent; and RCS-for-Business on iOS is narrower still). Before any rollout, <strong>audit lead geography and device mix</strong>, and ship a <strong>plain-SMS fallback</strong> for everywhere RCS is not guaranteed. Do not assume RCS delivery; treat it as an enhancement over a reliable SMS base.</p>
 </div>
 <div class="alert tip"><div class="at">&#10003; Recommendation</div><p>File one Jira ticket: "Wire Twilio SMS send into the outbound sequence, plain SMS first with the click-wall link, RCS as a later enhancement after a geography/device audit." Hand it to the dev team owning <code>/trigger-call</code> (Charlotte). It is small (Twilio messaging is already enabled), but it is not in code you can change.</p></div>
 <p class="src"><strong>Sources:</strong> live grep of <code>visiqua-src/</code> (no consumer SMS connector); <code>visiqua-repos.md</code> (read-only access); <code>marco-code-access-and-findings.md</code> (gateway gated); Twilio <code>/Messages.json</code> 200.</p>
@@ -506,9 +517,10 @@ flowchart LR
 
 <!-- ===================== SECTION 9 ===================== -->
 <details>
-<summary><span class="num">9</span> HLeads data-flow question (for Leo) <span class="sub">right foundation, or restructure before dashboards?</span></summary>
+<summary><span class="num">9</span> Lead-source foundation question (for Leo) <span class="sub">right attachment point, or restructure before dashboards?</span></summary>
 <div class="body">
-<p>Leads enter through HLeads and the whole system is built on top of that flow. Jamie's concern: parts of it were built as a workaround and later treated as permanent infrastructure, so building dashboards on it risks chasing technical debt.</p>
+<p>Leads land in the <strong>Aged Leads repository</strong> (<code>aged.leadstoconvert.com</code>, the source of the <code>AL-</code> lead IDs, which the dialer reads every 3-5 minutes) and the whole system is built on top of that flow. Jamie's concern: parts of it were built as a workaround and later treated as permanent infrastructure, so building dashboards on it risks chasing technical debt.</p>
+<div class="alert note"><div class="at">&#9432; Terminology note</div><p>Jamie's 6/11 notes call this source "HLeads," but that name appears nowhere in the code, the databases, or any platform, so it is almost certainly a transcription of "Aged Leads." Confirming the exact source name is part of the Leo review below.</p></div>
 
 <h3>What the live data shows about the foundation</h3>
 <ul>
@@ -519,9 +531,9 @@ flowchart LR
 
 <div class="alert important">
 <div class="at">&#10003; The crisp question for Leo</div>
-<p>"Is HLeads the right attachment point for the reporting layer, or should we source from a cleaner upstream first? Specifically: can we get a stable cross-system lead key (so joins stop relying on affiliate-name matching), reader access to the Aged-cost DB (for true per-lead margin), and either the stored-procedure definitions or a sign-off that our re-implemented funnel is the source of truth? If a cleaner source exists, we should restructure now, before dashboards are built on the name-matching workaround."</p>
+<p>"Is the Aged Leads repository the right attachment point for the reporting layer, or should we source from a cleaner upstream first? Specifically: can we get a stable cross-system lead key (so joins stop relying on affiliate-name matching), reader access to the Aged-cost DB (for true per-lead margin), and either the stored-procedure definitions or a sign-off that our re-implemented funnel is the source of truth? If a cleaner source exists, we should restructure now, before dashboards are built on the name-matching workaround."</p>
 </div>
-<div class="alert warning"><div class="at">&#9888; Technical-debt risk, stated plainly</div><p>If we build dashboards on the current HLeads-fed shape, we inherit three weak joints: name-based joins, missing per-lead cost, and a re-implemented (not authoritative) funnel. None blocks a v1 prototype, but each becomes expensive to unwind once dashboards depend on it. The recommendation is to get Leo's answer <strong>before</strong> hardening the data model, not after.</p></div>
+<div class="alert warning"><div class="at">&#9888; Technical-debt risk, stated plainly</div><p>If we build dashboards on the current Aged-Leads-fed shape, we inherit three weak joints: name-based joins, missing per-lead cost, and a re-implemented (not authoritative) funnel. None blocks a v1 prototype, but each becomes expensive to unwind once dashboards depend on it. The recommendation is to get Leo's answer <strong>before</strong> hardening the data model, not after.</p></div>
 <p class="src"><strong>Sources:</strong> live id-format checks (Leadspedia vs CtC); <code>mr_findings.md</code> cost + stored-procedure findings; <code>marco-code-access-and-findings.md</code> access map.</p>
 </div>
 </details>
@@ -534,14 +546,14 @@ flowchart LR
 <tbody>
 <tr><td>Buy fresh numbers in Twilio, register in CtC, add to the approved Branded Calling + Voice Integrity products (section 5)</td><td>Auto-rotation + daily spam-check API loop (dev build from the section 5 spec)</td></tr>
 <tr><td>Reassign the (231) Michigan catch-all so each state dials its own area code</td><td>Pre-call AMD (<code>MachineDetection</code>) so the agent stops monologuing into voicemail (gated <code>/trigger-call</code>)</td></tr>
-<tr><td>Shift redial windows to mid-afternoon/evening and cap Max Redials at 3-4 (section 6)</td><td>Lifting the lead-feed throttle <code>no_of_leads =&gt; 1</code> (the volume ceiling; dev)</td></tr>
-<tr><td>Shorten the opener, collapse the 4 confirmations, add a no-apology guardrail in each agent's <code>Agent Prompt</code> (section 4)</td><td>VAD turn-taking + model upgrade for the inline-dial fleet (set in CtC backend; dev)</td></tr>
+<tr><td>Shift redial windows to mid-afternoon/evening, cap Max Redials at 2-3, raise the agent <code>hourly_cap</code> (binding at ~5/active hour), and create an Aged-channel redial agent (it has none today) (sections 1, 6)</td><td>Lifting the hardcoded <code>no_of_leads =&gt; 1</code> feed throttle, where the correct cap is computed then discarded one line up (the volume ceiling; dev)</td></tr>
+<tr><td>Shorten the opener, collapse the 4 confirmations, add a no-apology guardrail in each agent's <code>Agent Prompt</code> (section 4)</td><td>VAD turn-taking, model upgrade, and the <code>inactivityMessages</code> dead-air exit for the inline-dial fleet (hardcoded in the <code>voice-agent</code> gateway, not CtC: old <code>llama3.3-70b</code>, no <code>vadSettings</code>; dev)</td></tr>
 <tr><td>Reclassify "connected" honestly in the reporting layer via Ultravox turns (sections 1, 3)</td><td>Wiring the SMS/RCS connector into the flow (Jira ticket, Charlotte; section 8)</td></tr>
-<tr><td>Add the <code>inactivityMessages</code> + <code>HANG_UP_SOFT</code> dead-air exit on the Ultravox-resident agent</td><td>Stable cross-system lead key, Aged-cost DB access, funnel-math sign-off (Leo; section 9)</td></tr>
+<tr><td>Sharpen voicemail wording in the prompt so <code>leaveVoicemail</code> fires sooner; tune the one inbound callback "Joe" agent in Ultravox (~0% of outbound volume)</td><td>Stable cross-system lead key, Aged-cost DB access, funnel-math sign-off (Leo; section 9); a caller-ID reputation vendor for spam auto-retire (section 5)</td></tr>
 </tbody>
 </table>
 
-<p class="meta" style="margin-top:1.5rem;">Generated 2026-06-11 from live sources. Every number traces to a query run for this report; sample-based and inferred figures are tagged as such. Nothing was pushed live.</p>
+<p class="meta" style="margin-top:1.5rem;">Generated 2026-06-11 from live sources; revised 2026-06-14 (verification pass: re-confirmed redial/throttle behavior, channel trends, AMD and VAD/model location, spam-check tooling, GitHub-org rotation/SMS audit, and the lead-source naming). Every number traces to a query run for this report; sample-based and inferred figures are tagged as such. Nothing was pushed live.</p>
 
 <script>
 mermaid.initialize({startOnLoad:true, theme:'neutral', flowchart:{useMaxWidth:true}});
