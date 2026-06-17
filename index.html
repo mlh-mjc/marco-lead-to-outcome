@@ -425,15 +425,62 @@ flowchart TD
 <h3>Pack B &mdash; The conversational / transfer rewrite</h3>
 <p>The economics Jamie is steering to: we reach a human on only <strong>~40%</strong> of dials, but if we transferred even <strong>15%</strong> of those we would be profitable; today we sit in low single digits. The script, not the contact rate, is the gap. The current flow is rigid and adversarial: it front-loads an "is that correct?" verification, builds no rapport, asks no qualifying questions, and ends with a forced "I'm transferring you now" that feels like a handoff without consent.</p>
 
-<h4>The rewritten flow</h4>
-<ol>
-<li><strong>Disclose, then confirm identity.</strong> California outbound requires an AI disclosure <em>before</em> identity: "Hi, this is a virtual assistant calling on behalf of Find Quality Insurance. Am I speaking with &lt;&lt;first_name&gt;&gt;?"</li>
-<li><strong>Warm confirmation, not a quiz.</strong> "You recently looked into an auto quote on &lt;&lt;DOMAIN&gt;&gt;, and I'm just following up to make sure you got taken care of." Pause, then affirm whatever they say. (Replaces the skeptic-inducing "is that correct?")</li>
-<li><strong>One rapport question</strong> (new): "Are you currently insured, or shopping from scratch?" Acknowledge, keep it to ~15-20s.</li>
-<li><strong>Two or three qualifying points</strong> (new), woven in, not a checklist: current carrier, homeowner or renter, bundle interest, still shopping. Two is plenty; if they're ready, skip ahead.</li>
-<li><strong>Consent transfer ask</strong> (the key change): "Based on what you've shared, I can connect you with someone local who specializes in exactly this &mdash; would that work for you right now?" Yes &rarr; <code>transferCaller</code>.</li>
-<li><strong>One soft re-ask, then the SMS fallback</strong> (monetize the no): "No problem at all &mdash; I'll text you the carriers I matched you with so you can connect whenever it's convenient." Yes &rarr; send SMS &rarr; <code>hangUp</code>.</li>
-</ol>
+<h4>The paste-ready prompt</h4>
+<p>Drop this into the agent's <code>Agent Prompt</code> <code>&lt;call_flow&gt;</code>. Everything here uses merge tokens (<code>&lt;&lt;voice_agent&gt;&gt;</code>, <code>&lt;&lt;first_name&gt;&gt;</code>, <code>&lt;&lt;DOMAIN&gt;&gt;</code>) the prompt already fills in, and tools that already exist (<code>transferCaller</code>, <code>leaveVoicemail</code>, <code>hangUp</code>), so it is copy-paste-now. The one exception is the SMS fallback, left commented out and clearly marked dev-gated: there is no send path today (section 9), so leave it inert until the connector ships.</p>
+<pre><code>&lt;call_flow&gt;
+
+# Step 0 - AI disclosure + identity (California requires disclosure BEFORE identity)
+Say: "Hi, this is a virtual assistant calling on behalf of Find Quality Insurance.
+      Am I speaking with &lt;&lt;first_name&gt;&gt;?"
+- Wrong person: "My apologies for the mix-up, have a great day." -&gt; hangUp
+- Voicemail / recording: use leaveVoicemail -&gt;
+    "Hi &lt;&lt;first_name&gt;&gt;, this is &lt;&lt;voice_agent&gt;&gt; following up on the auto quote you
+     requested on &lt;&lt;DOMAIN&gt;&gt;. Call us back anytime and we'll connect you with a
+     licensed agent. Have a great day."
+
+# Step 1 - Warm confirmation (NOT a quiz; never say "is that correct?")
+Say: "Great. I'm &lt;&lt;voice_agent&gt;&gt; - you recently looked into an auto quote on
+      &lt;&lt;DOMAIN&gt;&gt;, and I'm just following up to make sure you got taken care of."
+Pause. Affirm whatever they say ("Got it", "Makes sense").
+- "I didn't request that": "No problem at all, sorry for the confusion.
+   Have a great day." -&gt; hangUp
+
+# Step 2 - One rapport question (keep to ~15-20s; ask ONE thing at a time)
+Ask: "Are you currently insured, or shopping for something new?"
+Acknowledge briefly, then move on.
+
+# Step 3 - Two or three qualifying points (weave in; do NOT read as a checklist)
+Collect any 2-3 of: current carrier, homeowner or renter, open to bundling
+auto + home, still actively shopping. Two is plenty. If they're clearly ready,
+skip to Step 4. Never ask about price - that is for the licensed agent.
+
+# Step 4 - Consent transfer ask (the key change; never force the transfer)
+Say: "Based on what you've shared, I can connect you with someone local who
+      specializes in exactly this - would that work for you right now?"
+- Yes -&gt; "Perfect, give me one moment." -&gt; transferCaller
+- Hesitant / busy / not interested -&gt; Step 5
+
+# Step 5 - ONE soft re-ask, then exit (do not push more than once)
+Say once: "Totally get it - even five minutes with an agent could save you a
+      good amount. Any chance you have a couple minutes now?"
+- Yes -&gt; transferCaller
+- Still no -&gt; "Completely fair. If you change your mind, just call this number
+   back. Have a great day." -&gt; hangUp
+
+# ===================================================================
+# SMS FALLBACK - DEV-GATED. DO NOT ENABLE until the SMS connector ships
+# (section 9). There is NO send path today, so this block is inert.
+# When the connector exists, uncomment and use it as the "Still no"
+# branch in Step 5, ahead of hangUp:
+#
+#   Say: "No problem - I'll text you the carriers I matched you with so
+#         you can connect on your own time." -&gt; sendSms -&gt; hangUp
+#
+#   Requires TCPA-compliant opt-in on &lt;&lt;DOMAIN&gt;&gt;. Never offer SMS before
+#   Step 4 (it gives callers an easy out that kills the live transfer).
+# ===================================================================
+
+&lt;/call_flow&gt;</code></pre>
 
 <div class="alert tip"><div class="at">&#10003; Three rules that make Pack B work</div>
 <p><strong>Lead with the transfer; never offer both at once.</strong> If SMS is on the table during steps 2-5, a chunk of callers take the easy path every time. Offer SMS only on a decline or an "I'm busy."</p>
