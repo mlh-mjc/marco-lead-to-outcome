@@ -79,7 +79,7 @@ small{color:var(--muted);}
 
 <div class="alert note">
 <div class="at">&#9432; How to use this document</div>
-<p>Everything is collapsed by default so the whole report fits one screen. Read the summary just below, then open the section that answers the question in front of you. Each of the nine sections is self-contained and drills from a one-line headline down to the exact page, field, and value to change.</p>
+<p>Everything is collapsed by default so the whole report fits one screen. Read the summary just below, then open the section that answers the question in front of you. Each of the ten sections is self-contained and drills from a one-line headline down to the exact page, field, and value to change.</p>
 <p><strong>Evidence tags</strong> appear on claims: <span class="tag live">LIVE</span> queried from the API/DB just now, <span class="tag code">CODE</span> located in the dialer source on disk, <span class="tag infer">INFERRED</span> reasoned, not directly measured (always flagged, v5-style). Where data is missing, the section says so plainly.</p>
 </div>
 
@@ -114,7 +114,12 @@ small{color:var(--muted);}
 </tbody>
 </table>
 
-<p class="meta">The nine sections below take this apart and attach a concrete, self-serve action to every bucket. The split of what you can do alone versus what needs Leo, the dev team, or the lead feed is restated at the very bottom.</p>
+<p class="meta">The ten sections below take this apart and attach a concrete, self-serve action to every bucket. The split of what you can do alone versus what needs Leo, the dev team, or the lead feed is restated at the very bottom.</p>
+
+<div class="alert important">
+<div class="at">&#10003; This week's controlled live test (agreed with Jamie, 6-16)</div>
+<p>Five changes go in as one controlled experiment, measured as a split run: <strong>500 dials before vs 500 after</strong>. No testing harness is needed (Charlotte's is still being migrated), so these run on live traffic. The five: <strong>(1)</strong> raise the agent <code>hourly_cap</code> 5 &rarr; 15 (the queue is starved: ~1.8 dials/lead today against a 2-3 target); <strong>(2)</strong> cap Max Redials at 2-3; <strong>(3)</strong> shift the dial window toward mid-afternoon/evening; <strong>(4)</strong> the screener get-through prompt (section 5, Pack A); <strong>(5)</strong> the conversational/transfer rewrite (section 5, Pack B). Items 1-3 are section 7; the prompts are section 5.</p>
+</div>
 
 <hr>
 
@@ -149,7 +154,7 @@ small{color:var(--muted);}
 <p>In the gateway code (<code>voice-agent/index.js:517-522</code>) "connected" is emitted the moment Ultravox sends <code>call.joined</code>, which only means the audio bridged. A voicemail box, an iOS Live Voicemail screen, or a carrier screener all "join". The gateway even emits <code>connected</code> first and <em>then</em> emits <code>voicemail</code> for the same call (<code>:548</code>), so the connect signal is structurally inflated. CtC stores whatever the gateway posts, unverified (<code>BrainAPIController.php:1006-1008</code>). Hannah, meanwhile, keys "Connected" by hand from the same overstated source, which is why her number and the DB number both overstate real contact.</p>
 </div>
 
-<h3>The canonical glossary (used by sections 2 to 9)</h3>
+<h3>The canonical glossary (used by sections 2 to 10)</h3>
 <table>
 <thead><tr><th>Canonical term</th><th>Definition this report locks in</th><th>How it is measured</th></tr></thead>
 <tbody>
@@ -310,12 +315,12 @@ flowchart TD
 <details>
 <summary><span class="num">4</span> Per-bucket action plan <span class="sub">what is happening, why, what to change</span></summary>
 <div class="body">
-<p>One plan per outcome bucket: the observation, the likely cause, and the specific self-serve change. Click-by-click numbers, agents, and field values are in sections 5 and 6.</p>
+<p>One plan per outcome bucket: the observation, the likely cause, and the specific self-serve change. Click-by-click numbers, agents, and field values are in sections 6 and 7.</p>
 
 <h3>No-answer (41.9%)</h3>
 <ul>
 <li><strong>What:</strong> 3,779 dials rang out with no pickup and no voicemail.</li>
-<li><strong>Cause:</strong> a mix of carrier screening on burned numbers (section 5) and dialing in the lowest-pickup hours (section 6: 10am-12pm ET is 8-14% pickup).</li>
+<li><strong>Cause:</strong> a mix of carrier screening on burned numbers (section 6) and dialing in the lowest-pickup hours (section 7: 10am-12pm ET is 8-14% pickup).</li>
 <li><strong>Change:</strong> rotate fresh numbers per state, and shift the redial window into mid-afternoon and early evening. Both are self-serve.</li>
 </ul>
 
@@ -330,14 +335,14 @@ flowchart TD
 <ul>
 <li><strong>What:</strong> the stream joins, the agent talks, nobody (or a machine) is there.</li>
 <li><strong>Cause:</strong> the inline-dial agents wait for the callee to speak first, which is good, but with no AMD and default turn-taking they hang on screeners. The known dead-air loop bug.</li>
-<li><strong>Change (dev for the whole outbound fleet):</strong> add an <code>inactivityMessages</code> ladder with a <code>HANG_UP_SOFT</code> exit. Verified live: <strong>100% of outbound dials are inline (<code>agentId</code> null), 0% run on a registered Ultravox agent</strong>, and <code>inactivityMessages</code> is call-config the gateway creates, not prompt text, so this is a gateway change, not self-serve. The only self-serve dead-air lever you have on outbound is the prompt wording in CtC (weaker).</li>
+<li><strong>Change (dev for the whole outbound fleet):</strong> add an <code>inactivityMessages</code> ladder with a <code>HANG_UP_SOFT</code> exit. Verified live: <strong>100% of outbound dials are inline (<code>agentId</code> null), 0% run on a registered Ultravox agent</strong>, and <code>inactivityMessages</code> is call-config the gateway creates, not prompt text, so this is a gateway change, not self-serve. The only self-serve dead-air lever you have on outbound is the prompt wording in CtC (weaker). The full screener get-through pack (detect, comply, wait, restart) is in section 5, Pack A.</li>
 </ul>
 
 <h3>Media-connected: brief 1-2 turn bail (~48% of connected)</h3>
 <ul>
 <li><strong>What:</strong> a human says hello, hears the opener, hangs up within 2-3 turns.</li>
 <li><strong>Cause:</strong> the opener is the problem, but not because it is long. "Hello... am I speaking with [name]?" is the exact cadence of a robocall: a cold identity demand with no reason for the call, so a wary human (or a screening service like Google Call Screen / iOS Live Voicemail reading it aloud) pattern-matches it as spam in about a second and declines. The rigid 4-confirmation flow then stacks more friction on whoever stays. Confirmed live: the rendered prompt in <code>call_data</code> still opens this way.</li>
-<li><strong>Change (self-serve in CtC per agent):</strong> make the opener sound human and lead with the reason (e.g. "Hi, it's Joe, you just asked about an auto quote online, do you have a quick sec?") instead of the cold "am I speaking with [name]?". Trimming length helps a little, but the lever that matters is not sounding like a spam script. Then collapse the four yes-gates (identity, form, interest, transfer) into one, and forbid the model from apologizing or asking "did you intend to submit". Edit the <code>Agent Prompt</code> field on each agent. The full replacement prompt and the exact per-agent edit URLs are in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan (click-by-click)</a>.</li>
+<li><strong>Change (self-serve in CtC per agent):</strong> make the opener sound human and lead with the reason (e.g. "Hi, it's Joe, you just asked about an auto quote online, do you have a quick sec?") instead of the cold "am I speaking with [name]?". Trimming length helps a little, but the lever that matters is not sounding like a spam script. Then collapse the four yes-gates (identity, form, interest, transfer) into one, and forbid the model from apologizing or asking "did you intend to submit". Edit the <code>Agent Prompt</code> field on each agent. The full replacement prompt and the exact per-agent edit URLs are in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan (click-by-click)</a>, and the full conversational rewrite (rapport, qualifying questions, consent transfer, SMS fallback) is in section 5, Pack B.</li>
 </ul>
 
 <h3>Transferred &amp; billable (0.32% / 0.03%)</h3>
@@ -347,14 +352,104 @@ flowchart TD
 <li><strong>Change:</strong> the reach fixes (numbers, timing, script) lift transfers; the volume ceiling itself is the feed throttle, which is dev-team work.</li>
 </ul>
 
-<div class="alert tip"><div class="at">&#10003; Sequencing</div><p>Do the self-serve reach fixes first (sections 5 and 6) because they need nobody. The two highest-leverage items overall, the feed throttle and pre-call AMD, are dev-team tickets, so file them in parallel rather than waiting.</p></div>
+<div class="alert tip"><div class="at">&#10003; Sequencing</div><p>Do the self-serve reach fixes first (sections 6 and 7) because they need nobody. The two highest-leverage items overall, the feed throttle and pre-call AMD, are dev-team tickets, so file them in parallel rather than waiting.</p></div>
 <p class="src"><strong>Sources:</strong> live funnel (section 3); <code>call_data</code> rendered prompt (live); code findings in <code>ManageAiOutboundCalls.php</code>, <code>AdjustVoiceMailCallsData.php</code>; Ultravox knob reference.</p>
 </div>
 </details>
 
 <!-- ===================== SECTION 5 ===================== -->
 <details>
-<summary><span class="num">5</span> Number burn, spam &amp; trust <span class="sub">who shares each line, branding vs spam, rotation pool</span></summary>
+<summary><span class="num">5</span> Call-screener get-through &amp; the conversational rewrite <span class="sub">the two prompt packs to test live this week</span></summary>
+<div class="body">
+
+<p>Jamie named two prompt areas to move the needle this week, and both are self-serve <code>Agent Prompt</code> edits (no dev, no testing harness needed): get <strong>through the screener</strong> to a human, and make the <strong>live conversation</strong> convert. This section holds both packs, ready to paste, plus the small set of telephony/config items the prompt alone cannot fix. The plan is a controlled live A/B: 500 dials before, 500 after.</p>
+
+<div class="alert note"><div class="at">&#9432; What is verified vs reported</div><p>Our stack facts (no AMD, 100% inline-dial agents, default turn-taking, the current opener) are <span class="tag live">LIVE</span>/<span class="tag code">CODE</span>. The carrier/handset screener mechanics below (the iOS ~30s hold, "rings anyway after 30s", Android auto-decline) are <span class="tag infer">REPORTED</span> from public vendor write-ups, not measured on our own traffic, and are flagged as such.</p></div>
+
+<h3>Pack A &mdash; Screener / IVR get-through</h3>
+
+<h4>Who actually decides: iPhone vs Android</h4>
+<table>
+<thead><tr><th>Handset</th><th>Who decides</th><th>What the agent must do</th><th>Winnable by prompt?</th></tr></thead>
+<tbody>
+<tr><td>iPhone (iOS 26 call screening)</td><td><strong>The human</strong>, always. A live transcript appears on-screen and they accept or decline.</td><td>Deliver a tight, verifiable, reason-first line that reads well on the transcript, then go silent and wait for the ring-through.</td><td>Yes &mdash; this is the lever.</td></tr>
+<tr><td>Android Pixel (Call Screen, auto mode)</td><td><strong>Google's AI</strong> can auto-decline without ever showing the user.</td><td>Same get-through line, but expect a share of these to never reach a human.</td><td>Partly &mdash; reputation/attestation matters more here than wording.</td></tr>
+</tbody>
+</table>
+
+<h4>The iOS 26 timeline (why a good line alone is not enough)</h4>
+<ol>
+<li>Marco dials; iOS intercepts before the consumer sees a ring.</li>
+<li>Apple plays "please state your name and reason for calling."</li>
+<li>Marco speaks its ~10-15s line; a <strong>live transcript builds on the consumer's screen</strong>.</li>
+<li>The call sits in a holding state for up to ~30s.</li>
+<li><em>Then</em> the phone rings, the consumer reads the transcript, and decides: answer, voicemail, or decline.</li>
+</ol>
+<p>So the agent talks into what feels like a void and must <strong>stay on the line through a long silence</strong>. The failure today: with no answering-machine detection and default turn-taking, the agent either treats the Apple prompt as a live human and starts its normal flow (so the transcript becomes a garbled half-pitch), or treats the silence as a dead line and hangs up before the ring. Both kill a call the consumer actually asked for. <span class="tag code">CODE</span></p>
+
+<h4>The fix: detect the screener, comply, wait, restart</h4>
+<p>This branch slots into the outbound <code>Agent Prompt</code> <code>&lt;edge_cases&gt;</code>, ordered <strong>after</strong> voicemail detection (a one-way recording is voicemail; an interactive gate is a screener):</p>
+<pre><code>&lt;!-- SCREENER / IVR: get through to the human; do not pitch a machine. --&gt;
+&lt;!-- Precedence: a one-way recording asking you to leave a message is VOICEMAIL
+     (use leaveVoicemail). The rules below apply only to an INTERACTIVE gate. --&gt;
+
+- Live screener ("state your name and reason", "who's calling?", a named
+  assistant like "Call Assist by Google", or the Apple screening prompt):
+  do NOT run the normal opener. Say ONCE, plainly and reason-first:
+  "Hi &lt;&lt;first_name&gt;&gt;, this is &lt;&lt;voice_agent&gt;&gt; with Find Quality Insurance -
+   you requested an auto quote on &lt;&lt;DOMAIN&gt;&gt; a few minutes ago and I'm
+   calling to connect you with a licensed agent."
+  Then STOP talking and wait. Do not repeat, do not monologue, do not hang up
+  during the hold. When a person actually comes on, RESTART from the opener.
+
+- Press-key IVR ("press 1", "enter the extension", language menu):
+  use playDtmfSounds. Language menu -&gt; choose English. "Press 1 to continue" -&gt; "1".
+  No extension you can use -&gt; wait for an operator option ("0") or a human.
+
+- Gatekeeper offers to fetch them ("hold on, I'll get them"): accept -
+  "Thank you, I'll hold." Wait silently. Restart the opener when they arrive.
+
+- Give-up rule: after getting through, if there is still no human after one
+  short "Hello, are you there?", or the screener loops, stop and hangUp.
+  Never loop the opener at a machine.</code></pre>
+<p>That reason-first line is the highest-leverage word change available: it is the exact text the consumer reads on the iOS transcript, and a consent-anchored "you just asked for this a few minutes ago" is something almost no spam caller can truthfully say.</p>
+
+<div class="alert warning"><div class="at">&#9888; Three things the prompt alone cannot fix (config / telephony)</div>
+<p><strong>1. Let the holds breathe (gateway).</strong> "Stay silent through the ~30s hold" only works if a silent stretch does not auto-end the call. Set a non-zero inactivity tolerance and confirm turn-taking (<code>vadSettings</code>); both are call-config the gateway creates, not prompt text. <span class="tag code">CODE</span></p>
+<p><strong>2. Enable the keypad tool.</strong> <code>playDtmfSounds</code> must be added to the call's <code>selectedTools</code> (the per-call payload on outbound) or the IVR branch does nothing.</p>
+<p><strong>3. Get delivered in the first place.</strong> Confirm A-level STIR/SHAKEN attestation with Ultravox, get Marco's numbers <strong>off shared DID pools</strong> (one bad actor on the pool taints everyone), register the DIDs in the <strong>Free Caller Registry</strong> (free, covers all three carriers) plus branded calling, and prime the number with a pre-call SMS where compliant. Reputation is what decides whether the screener even shows our transcript favorably, especially on Android. See section 6 (number burn) and section 9 (SMS).</p>
+</div>
+
+<div class="alert caution"><div class="at">&#9888; Getting through is not the same as fixing the metric</div><p>CtC still stamps <code>connected</code> the instant the stream joins. Passing a screener does not, by itself, correct the inflated connected count &mdash; pair this with the reporting reclassification in sections 1 and 3 so screener-but-not-human calls are excluded.</p></div>
+
+<h3>Pack B &mdash; The conversational / transfer rewrite</h3>
+<p>The economics Jamie is steering to: we reach a human on only <strong>~40%</strong> of dials, but if we transferred even <strong>15%</strong> of those we would be profitable; today we sit in low single digits. The script, not the contact rate, is the gap. The current flow is rigid and adversarial: it front-loads an "is that correct?" verification, builds no rapport, asks no qualifying questions, and ends with a forced "I'm transferring you now" that feels like a handoff without consent.</p>
+
+<h4>The rewritten flow</h4>
+<ol>
+<li><strong>Disclose, then confirm identity.</strong> California outbound requires an AI disclosure <em>before</em> identity: "Hi, this is a virtual assistant calling on behalf of Find Quality Insurance. Am I speaking with &lt;&lt;first_name&gt;&gt;?"</li>
+<li><strong>Warm confirmation, not a quiz.</strong> "You recently looked into an auto quote on &lt;&lt;DOMAIN&gt;&gt;, and I'm just following up to make sure you got taken care of." Pause, then affirm whatever they say. (Replaces the skeptic-inducing "is that correct?")</li>
+<li><strong>One rapport question</strong> (new): "Are you currently insured, or shopping from scratch?" Acknowledge, keep it to ~15-20s.</li>
+<li><strong>Two or three qualifying points</strong> (new), woven in, not a checklist: current carrier, homeowner or renter, bundle interest, still shopping. Two is plenty; if they're ready, skip ahead.</li>
+<li><strong>Consent transfer ask</strong> (the key change): "Based on what you've shared, I can connect you with someone local who specializes in exactly this &mdash; would that work for you right now?" Yes &rarr; <code>transferCaller</code>.</li>
+<li><strong>One soft re-ask, then the SMS fallback</strong> (monetize the no): "No problem at all &mdash; I'll text you the carriers I matched you with so you can connect whenever it's convenient." Yes &rarr; send SMS &rarr; <code>hangUp</code>.</li>
+</ol>
+
+<div class="alert tip"><div class="at">&#10003; Three rules that make Pack B work</div>
+<p><strong>Lead with the transfer; never offer both at once.</strong> If SMS is on the table during steps 2-5, a chunk of callers take the easy path every time. Offer SMS only on a decline or an "I'm busy."</p>
+<p><strong>Frame SMS as value, not a brush-off:</strong> "the carriers I matched you with" beats "some options" because it implies personalization.</p>
+<p><strong>Prime the unreached too:</strong> the voicemail can mention the text is coming, so even a no-answer becomes a click opportunity.</p>
+</div>
+
+<div class="alert caution"><div class="at">&#9888; Before any SMS sends</div><p>The SMS fallback and the pre-call priming both depend on the connector that does not exist yet (section 9, dev) and on TCPA written consent captured on the &lt;&lt;DOMAIN&gt;&gt; form. The transfer-consent and rapport changes are pure prompt and can ship now; the SMS line should be staged behind the connector.</p></div>
+
+<p class="src"><strong>Sources:</strong> Marco prompt discussion 6-16 (Jamie); the two shared Claude sessions (screener mechanics, the Marco v2 rewrite) Jamie sent; <code>ctc-screener-ivr-branch.md</code> and the golden outbound prompt; live stack facts (no AMD, inline agents, current opener) from sections 3-4; external screener timing flagged <span class="tag infer">REPORTED</span>.</p>
+</div>
+</details>
+
+<!-- ===================== SECTION 6 ===================== -->
+<details>
+<summary><span class="num">6</span> Number burn, spam &amp; trust <span class="sub">who shares each line, branding vs spam, rotation pool</span></summary>
 <div class="body">
 
 <h3>The burn, regenerated live (30d)</h3>
@@ -410,9 +505,9 @@ flowchart TD
 </div>
 </details>
 
-<!-- ===================== SECTION 6 ===================== -->
+<!-- ===================== SECTION 7 ===================== -->
 <details>
-<summary><span class="num">6</span> Dial timing <span class="sub">pickup by hour and by attempt; shift the redial window</span></summary>
+<summary><span class="num">7</span> Dial timing <span class="sub">pickup by hour and by attempt; shift the redial window</span></summary>
 <div class="body">
 
 <h3>Pickup by hour <span class="tag live">LIVE</span> (June, ET = UTC-4)</h3>
@@ -451,16 +546,18 @@ flowchart TD
 <p><strong>1) Re-balance the redials you already have.</strong> Cap <strong>Max Redials at 2-3</strong> (currently 5 on the 22 RT/CoReg redial agents): attempts 6-12 add zero contact and only burn numbers, and capping frees scarce capacity for more leads' first redial (the 29% peak). <strong>2) Shift the window</strong> from 10am-4pm toward <strong>~3pm local through the evening</strong>, tested on the highest-volume campaigns (PA, IL, TN, VA) first. <strong>3) Raise the hourly cap.</strong> Agents hit ~5.05 dials in active hours against an <code>hourly_cap</code> of 5, so it is actively throttling; raise it (e.g. 5 &rarr; 15) so redials actually run. <strong>4) Create an Aged redial agent.</strong> The Aged channel has none today, so aged leads never get retried; build per-state aged redial agents mirroring the RT redial config.</p>
 <p><strong>Exact change, per state, in CtC:</strong> open the redial agent (e.g. PA <code>.../customer/ai-agent/redial/edit/65</code>), <strong>Scheduling</strong> tab, uncheck <code>10am-11am</code> / <code>11am-12pm</code> / <code>12pm-1pm</code>, keep <code>1pm-4pm</code>, add the evening hours; on the <strong>General</strong> tab set <strong>Max Redials</strong> 5 &rarr; 2-3 and raise the hourly cap. Redial agent ids: PA 65, VA 64, TN 66, IL 70, IN 67, OH 68, WA 71, OR 69, ME 72. Full click-by-click in the <a href="https://mlh-mjc.github.io/marco-volume-action-plan/">v5 action plan</a>.</p></div>
 
+<div class="alert important"><div class="at">&#10003; Agreed with Jamie (6-16): these three are in this week's live test</div><p>The hourly-cap raise (5 &rarr; 15), the Max-Redials cap (2-3), and the window shift are signed off as configuration tweaks in CtC (no dev). Jamie's read: the cap of 5 is "blocking us from even getting a call at all," which is why each lead only sees ~1.8 dials instead of the 2-3 target. They go in alongside the two section-5 prompt packs as one controlled experiment, measured 500 dials before vs 500 after. If a lever underperforms after the run, revert with the data in hand.</p></div>
+
 <div class="alert warning"><div class="at">&#9888; Honest caveat</div><p>Pickup data exists only for hours actually dialed (10am-4pm). The 4pm-7pm local window is industry-prime contact time but has <strong>no historical data here</strong>, so extending into it is a test, not a proven move. If evenings underperform after a week, revert with the data in hand.</p></div>
 <p class="src"><strong>Sources:</strong> live SQL pickup-by-hour and pickup-by-<code>redial_counts</code>; <code>ai_agent_schedulings</code> window distribution; redial agent ids from <code>marco-code-access-and-findings.md</code> and live agent list.</p>
 </div>
 </details>
 
-<!-- ===================== SECTION 7 ===================== -->
+<!-- ===================== SECTION 8 ===================== -->
 <details>
-<summary><span class="num">7</span> Multi-channel sequencing <span class="sub">call, back off, then SMS, instead of hammering</span></summary>
+<summary><span class="num">8</span> Multi-channel sequencing <span class="sub">call, back off, then SMS, instead of hammering</span></summary>
 <div class="body">
-<p>Section 6 proves the dialer hammers a dead line: attempts 6-12 get 0% pickup and only deepen the burn from section 5. Carriers also track <em>purchasing patterns</em>, so churning numbers does not fully escape a repeat-offender flag. The longer-term fix is to stop dialing more and start sequencing across channels.</p>
+<p>Section 7 proves the dialer hammers a dead line: attempts 6-12 get 0% pickup and only deepen the burn from section 6. Carriers also track <em>purchasing patterns</em>, so churning numbers does not fully escape a repeat-offender flag. The longer-term fix is to stop dialing more and start sequencing across channels.</p>
 
 <h3>Recommended sequence per lead</h3>
 <div class="mermaid">
@@ -481,16 +578,16 @@ flowchart LR
 <ul>
 <li><strong>Immediate call</strong> on lead arrival (RT leads are 72% of volume and freshest).</li>
 <li><strong>Exponential back-off:</strong> redial #1 at ~24h (the 29% peak), redial #2 at ~48h, then stop. Replaces the current flat ~24h cadence out to 12 attempts.</li>
-<li><strong>Switch channel, do not re-dial:</strong> after 2-3 unanswered calls, move the lead to SMS/RCS (section 8) rather than attempts 4-12, which the data shows are wasted and burn the brand at the carrier level.</li>
+<li><strong>Switch channel, do not re-dial:</strong> after 2-3 unanswered calls, move the lead to SMS/RCS (section 9) rather than attempts 4-12, which the data shows are wasted and burn the brand at the carrier level.</li>
 </ul>
-<div class="alert tip"><div class="at">&#10003; Why this beats more dialing</div><p>It captures the one high-value redial (29%), drops the zero-value tail (attempts 6-12), reduces dials-per-number (directly lowering the spam reputation in section 5), and reaches the consumers who will never answer a cold call but will tap a text. It is a conversion multiplier and a burn reducer at once.</p></div>
-<p class="src"><strong>Sources:</strong> pickup-by-attempt (section 6, live); burn mechanics (section 5); click-wall page from <code>mr_findings.md</code> O&amp;O brand context.</p>
+<div class="alert tip"><div class="at">&#10003; Why this beats more dialing</div><p>It captures the one high-value redial (29%), drops the zero-value tail (attempts 6-12), reduces dials-per-number (directly lowering the spam reputation in section 6), and reaches the consumers who will never answer a cold call but will tap a text. It is a conversion multiplier and a burn reducer at once.</p></div>
+<p class="src"><strong>Sources:</strong> pickup-by-attempt (section 7, live); burn mechanics (section 6); click-wall page from <code>mr_findings.md</code> O&amp;O brand context.</p>
 </div>
 </details>
 
-<!-- ===================== SECTION 8 ===================== -->
+<!-- ===================== SECTION 9 ===================== -->
 <details>
-<summary><span class="num">8</span> SMS / RCS roadmap <span class="sub">click-wall built, connector missing: self-serve or dev?</span></summary>
+<summary><span class="num">9</span> SMS / RCS roadmap <span class="sub">click-wall built, connector missing: self-serve or dev?</span></summary>
 <div class="body">
 <p>The click-wall landing page (<code>findqualityinsurance.com/auto-012/</code>) is built and has sat in backlog ~2 months. The open question: can the SMS connector be wired with current access, or does it need a dev-team handoff?</p>
 
@@ -503,21 +600,25 @@ flowchart LR
 <ul>
 <li><strong>Conversion multiplier for form-fillers:</strong> consumers who filled a form but will not answer a cold call. SMS reaches them and links to the click-wall.</li>
 <li><strong>Optionality, not coercion:</strong> gives the lead a channel choice instead of forcing a phone call.</li>
-<li><strong>Reach where calls fail:</strong> the SMS step in the sequence (section 7) for leads that go unanswered after 2-3 dials.</li>
+<li><strong>Reach where calls fail:</strong> the SMS step in the sequence (section 8) for leads that go unanswered after 2-3 dials.</li>
 </ul>
 
 <div class="alert warning">
 <div class="at">&#9888; RCS varies by region and device, audit first</div>
 <p>RCS support depends on carrier, region, and handset (independently confirmed: RCS is live on only a handful of carriers across the US, Canada, UK, Germany, Spain, Belgium, and France; Apple's iOS rollout is region- and carrier-dependent; and RCS-for-Business on iOS is narrower still). Before any rollout, <strong>audit lead geography and device mix</strong>, and ship a <strong>plain-SMS fallback</strong> for everywhere RCS is not guaranteed. Do not assume RCS delivery; treat it as an enhancement over a reliable SMS base.</p>
 </div>
-<div class="alert tip"><div class="at">&#10003; Recommendation</div><p>File one Jira ticket: "Wire Twilio SMS send into the outbound sequence, plain SMS first with the click-wall link, RCS as a later enhancement after a geography/device audit." Hand it to the dev team owning <code>/trigger-call</code> (Charlotte). It is small (Twilio messaging is already enabled), but it is not in code you can change.</p></div>
+<div class="alert caution"><div class="at">&#9888; Compliance is the gate, not the connector (raised 6-16)</div><p>SMS carries more legal exposure than calling: TCPA requires <strong>prior express written consent</strong> for marketing texts, and unlike a call (where a litigator must prove contact in discovery), a text is its own evidence the recipient holds. Before any send, confirm the <code>&lt;&lt;DOMAIN&gt;&gt;</code> form opt-in language explicitly covers SMS from an AI/automated system, and that Jornaya/TrustedForm is witnessing it. This is table-stakes before the connector ships, not after.</p></div>
+
+<div class="alert note"><div class="at">&#9432; Carrier reputation: the "Pause" vs "STOP" tactic Jamie flagged</div><p>Separate from TCPA, carriers will throttle or shut off a number that accumulates <code>STOP</code> opt-outs. The tactic Jamie described from an operator he knows: keep the carrier-required "reply STOP to unsubscribe" language, but <em>also</em> offer an earlier, softer exit word (e.g. "reply PAUSE to stop hearing from us") that opts the consumer out <strong>internally</strong> without registering a carrier-level <code>STOP</code>. It protects sender reputation while still ending the messages. Note this is a reputation optimization, not a compliance shortcut: a real <code>STOP</code> must always still work, and suppression must be honored either way. Worth a legal/compliance check before adopting.</p></div>
+
+<div class="alert tip"><div class="at">&#10003; Recommendation</div><p>File one Jira ticket: "Wire Twilio SMS send into the outbound sequence, plain SMS first with the click-wall link, RCS as a later enhancement after a geography/device audit." Hand it to the dev team owning <code>/trigger-call</code> (Charlotte). It is small (Twilio messaging is already enabled), but it is not in code you can change. The compliance opt-in and suppression logic above must ship with it.</p></div>
 <p class="src"><strong>Sources:</strong> live grep of <code>visiqua-src/</code> (no consumer SMS connector); <code>visiqua-repos.md</code> (read-only access); <code>marco-code-access-and-findings.md</code> (gateway gated); Twilio <code>/Messages.json</code> 200.</p>
 </div>
 </details>
 
-<!-- ===================== SECTION 9 ===================== -->
+<!-- ===================== SECTION 10 ===================== -->
 <details>
-<summary><span class="num">9</span> Lead-source foundation question (for Leo) <span class="sub">right attachment point, or restructure before dashboards?</span></summary>
+<summary><span class="num">10</span> Lead-source foundation question (for Leo) <span class="sub">right attachment point, or restructure before dashboards?</span></summary>
 <div class="body">
 <p>Leads land in the <strong>Aged Leads repository</strong> (<code>aged.leadstoconvert.com</code>, the source of the <code>AL-</code> lead IDs, which the dialer reads every 3-5 minutes) and the whole system is built on top of that flow. Jamie's concern: parts of it were built as a workaround and later treated as permanent infrastructure, so building dashboards on it risks chasing technical debt.</p>
 <div class="alert note"><div class="at">&#9432; Terminology note</div><p>Jamie's 6/11 notes call this source "HLeads," but that name appears nowhere in the code, the databases, or any platform, so it is almost certainly a transcription of "Aged Leads." Confirming the exact source name is part of the Leo review below.</p></div>
@@ -527,6 +628,13 @@ flowchart LR
 <li><strong>The spine works, but only by name, not by id.</strong> Cross-system lead ids do not match (Leadspedia <code>leadID</code> &ne; CtC <code>AL-</code> id &ne; ping GUID, all confirmed live). Every join that crosses a system boundary leans on affiliate/publisher <em>name</em> matching plus date, which is fragile to renames and shared-source labels like "DMS (shared)".</li>
 <li><strong>Per-lead cost is not in the reader at all.</strong> Acquisition cost (<code>Lead_Payout</code>) lives in an Aged-cost DB that is not granted; the replica has only transfer-level payout. So true cost-per-outcome currently has to be approximated by source-level CPL from Leadspedia.</li>
 <li><strong>The funnel math is hidden.</strong> The numbers the existing reports show come from stored procedures (<code>getAISummarizedStats</code>, <code>getAICallsAttemptReport</code>) that are not in the repo and not executable by the reader. Any dashboard must re-implement that math, so it can silently diverge from what the platform shows.</li>
+</ul>
+
+<h3>Pipeline updates in motion (6-16)</h3>
+<ul>
+<li><strong>Per-lead cost is becoming an API feed, not a DB grant.</strong> Leo and Carlos are building a dedicated endpoint that pushes daily lead-cost data (consumed via API, not a CSV pull or front-end export), because the dedicated cost database "doesn't exist for this" yet. Action: follow up on the Monday backlog ticket for a timeline, and hold a placeholder in the Lead Quality / cost view until it lands. If it slips past a few days, stand up an interim source-level CPL approximation.</li>
+<li><strong>LeadAIQ historical access is pending Elvis.</strong> A read-only grant on the <code>leadiq</code> (LeadAIQ) database, backfilled to ~October, is what turns the Lead Quality tab from "scores are low" into exact rule-failure counts (VPN, proxy, user-agent, device). Follow-up sent 6-16; this gates the full Quality view, not the MVP.</li>
+<li><strong>Double-scoring is a known cost + accuracy bug Scott is cleaning up.</strong> Leads are scored once in Leadspedia at ingestion, then re-scored in Aged Leads with a <em>different</em> key, so we pay twice and the scores disagree: a real 90 can come back an 80 and fall below the 90 dial threshold, so we spend double to <em>not</em> call a good lead. Fix is to pass the original Leadspedia score through and retire the secondary query, or at minimum align both to the same key.</li>
 </ul>
 
 <div class="alert important">
@@ -544,16 +652,16 @@ flowchart LR
 <table>
 <thead><tr><th>&#9989; Mark can do today (own tools)</th><th>&#9203; Needs dev team / Leo / lead feed</th></tr></thead>
 <tbody>
-<tr><td>Buy fresh numbers in Twilio, register in CtC, add to the approved Branded Calling + Voice Integrity products (section 5)</td><td>Auto-rotation + daily spam-check API loop (dev build from the section 5 spec)</td></tr>
+<tr><td>Buy fresh numbers in Twilio, register in CtC + the Free Caller Registry, get off shared DID pools, add to the approved Branded Calling + Voice Integrity products (section 6)</td><td>Auto-rotation + daily spam-check API loop (dev build from the section 6 spec)</td></tr>
 <tr><td>Reassign the (231) Michigan catch-all so each state dials its own area code</td><td>Pre-call AMD (<code>MachineDetection</code>) so the agent stops monologuing into voicemail (gated <code>/trigger-call</code>)</td></tr>
-<tr><td>Shift redial windows to mid-afternoon/evening, cap Max Redials at 2-3, raise the agent <code>hourly_cap</code> (binding at ~5/active hour), and create an Aged-channel redial agent (it has none today) (sections 1, 6)</td><td>Lifting the hardcoded <code>no_of_leads =&gt; 1</code> feed throttle, where the correct cap is computed then discarded one line up (the volume ceiling; dev)</td></tr>
-<tr><td>Shorten the opener, collapse the 4 confirmations, add a no-apology guardrail in each agent's <code>Agent Prompt</code> (section 4)</td><td>VAD turn-taking, model upgrade, and the <code>inactivityMessages</code> dead-air exit for the inline-dial fleet (hardcoded in the <code>voice-agent</code> gateway, not CtC: old <code>llama3.3-70b</code>, no <code>vadSettings</code>; dev)</td></tr>
-<tr><td>Reclassify "connected" honestly in the reporting layer via Ultravox turns (sections 1, 3)</td><td>Wiring the SMS/RCS connector into the flow (Jira ticket, Charlotte; section 8)</td></tr>
-<tr><td>Sharpen voicemail wording in the prompt so <code>leaveVoicemail</code> fires sooner; tune the one inbound callback "Joe" agent in Ultravox (~0% of outbound volume)</td><td>Stable cross-system lead key, Aged-cost DB access, funnel-math sign-off (Leo; section 9); a caller-ID reputation vendor for spam auto-retire (section 5)</td></tr>
+<tr><td>Shift redial windows to mid-afternoon/evening, cap Max Redials at 2-3, raise the agent <code>hourly_cap</code> (binding at ~5/active hour), and create an Aged-channel redial agent (it has none today) (sections 1, 7)</td><td>Lifting the hardcoded <code>no_of_leads =&gt; 1</code> feed throttle, where the correct cap is computed then discarded one line up (the volume ceiling; dev)</td></tr>
+<tr><td>Add the screener-detection / get-through branch, lead the opener with the reason, collapse the 4 confirmations into a consent ask, and add the SMS fallback line in each agent's <code>Agent Prompt</code> (sections 4 and 5)</td><td>VAD turn-taking, model upgrade, and the <code>inactivityMessages</code> dead-air exit for the inline-dial fleet (hardcoded in the <code>voice-agent</code> gateway, not CtC: old <code>llama3.3-70b</code>, no <code>vadSettings</code>; dev)</td></tr>
+<tr><td>Reclassify "connected" honestly in the reporting layer via Ultravox turns (sections 1, 3)</td><td>Wiring the SMS/RCS connector into the flow (Jira ticket, Charlotte; section 9)</td></tr>
+<tr><td>Sharpen voicemail wording in the prompt so <code>leaveVoicemail</code> fires sooner; tune the one inbound callback "Joe" agent in Ultravox (~0% of outbound volume)</td><td>Stable cross-system lead key, Aged-cost DB access, funnel-math sign-off (Leo; section 10); a caller-ID reputation vendor for spam auto-retire (section 6)</td></tr>
 </tbody>
 </table>
 
-<p class="meta" style="margin-top:1.5rem;">Generated 2026-06-11 from live sources; revised 2026-06-14 (verification pass: re-confirmed redial/throttle behavior, channel trends, AMD and VAD/model location, spam-check tooling, GitHub-org rotation/SMS audit, and the lead-source naming). Every number traces to a query run for this report; sample-based and inferred figures are tagged as such. Nothing was pushed live.</p>
+<p class="meta" style="margin-top:1.5rem;">Generated 2026-06-11 from live sources; revised 2026-06-14 (verification pass: re-confirmed redial/throttle behavior, channel trends, AMD and VAD/model location, spam-check tooling, GitHub-org rotation/SMS audit, and the lead-source naming); revised 2026-06-16 (added section 5, the two prompt packs from the 6-16 prompt discussion: screener get-through and the conversational/transfer rewrite). Every number traces to a query run for this report; sample-based and inferred figures are tagged as such. Nothing was pushed live.</p>
 
 <script>
 mermaid.initialize({startOnLoad:true, theme:'neutral', flowchart:{useMaxWidth:true}});
